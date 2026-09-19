@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Agent AI Repo Analyzer</title>
+    <!-- Marked.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="navbar">
+        <div class="nav-brand">
+            <span class="pulse-dot"></span>
+            <span class="brand-title">AI Repo Analyzer <span class="badge">v2.0-MultiAgent</span></span>
+        </div>
+        <div class="nav-subtitle">Powered by Groq LPU</div>
+    </header>
+
+    <main class="container">
+        
+        <div class="hero">
+            <h1>Multi-Agent Code Reviewer</h1>
+            <p>Deploy a digital engineering pod (Security Specialist, QA Bug Hunter, and Lead Architect) to analyze any public GitHub repository instantly.</p>
+        </div>
+
+        <div class="card input-card">
+            <!-- BYOK API Key Input Field -->
+            <div class="byok-group" style="margin-bottom: 20px;">
+                <label for="groq-api-key" class="input-label" style="font-size: 13px; font-weight: 500; display: block; margin-bottom: 6px; color: #ccc;">Groq API Key (BYOK)</label>
+                <input 
+                    type="password" 
+                    id="groq-api-key" 
+                    placeholder="gsk_..." 
+                    style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #161616; color: #fff; font-size: 14px; outline: none; transition: border-color 0.2s;"
+                >
+                <small style="color: #777; font-size: 11px; display: block; margin-top: 5px;">Used only for this session to bypass rate limits. Never stored on servers.</small>
+            </div>
+
+            <!-- GitHub Repository URL & Stacked Button -->
+            <div class="repo-section">
+                <label for="repoUrl" class="input-label" style="font-size: 13px; font-weight: 500; display: block; margin-bottom: 6px; color: #ccc;">GitHub Repository URL</label>
+                <input 
+                    type="text" 
+                    id="repoUrl" 
+                    placeholder="https://github.com/username/repository"
+                    style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #161616; color: #fff; font-size: 14px; outline: none; margin-bottom: 12px;"
+                >
+                <button type="button" id="analyzeBtn" style="width: 100%; padding: 12px; border-radius: 8px; background: #2563eb; color: #fff; border: none; font-weight: 600; cursor: pointer; transition: background 0.2s; font-size: 14px;">Run Analysis</button>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="hidden loading-box">
+            <div class="spinner"></div>
+            <p class="loading-title">Agent crew is hard at work...</p>
+            <p class="loading-subtitle">Cloning repo ➔ Parsing files ➔ Security & QA audit ➔ Synthesizing review</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="hidden error-box"></div>
+
+        <!-- Output Result Section -->
+        <div id="resultSection" class="hidden card result-card">
+            <div class="result-header">
+                <h2><span>🏛️</span> Executive Architecture & Security Review</h2>
+                <span class="status-badge">Complete</span>
+            </div>
+            <div id="markdownOutput" class="markdown-content"></div>
+        </div>
+
+    </main>
+
+    <footer>
+        Built for raw speed and clean architecture.
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
