@@ -102,8 +102,8 @@ def analyze_codebase(repo_url: str, api_key: str = None):
                 {"role": "system", "content": synth_sys},
                 {"role": "user", "content": synth_user}
             ],
-            temperature=0.2,
-            max_tokens=4000
+            temperature=0.1,
+            max_tokens=8000  # <-- Increase max tokens for the final synthesis pass
         )
         
         print("--- [COMPLETE] Analysis finished successfully! ---")
