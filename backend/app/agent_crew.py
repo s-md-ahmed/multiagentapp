@@ -78,16 +78,17 @@ def analyze_codebase(repo_url: str, api_key: str = None):
         bug_findings = bug_completion.choices[0].message.content
 
         # Agent 3: Lead Architect
+        
         print("--- [AGENT 3] Lead Architect compiling final review... ---")
         synth_sys = (
-            "You are a Lead Software Architect. Synthesize the CODEBASE CONTEXT, SECURITY REPORT, and BUG REPORT into a clean Markdown review.\n"
-            "STRUCTURE:\n"
+            "You are a Lead Software Architect. Synthesize the context into a clean Markdown review.\n"
+            "STRUCTURE REQUIRED:\n"
             "1. Architecture Overview\n"
             "2. Positive Aspects & Strengths\n"
-            "3. Security Findings (Markdown table: Vulnerability, Why it Happens, Severity, Estimated Time, Owner/Team)\n"
-            "4. Bug & Vulnerability Findings (Markdown table: Bug/Issue, Why it Happens, Severity, Estimated Time, Owner/Team)\n"
-            "5. Recommendations & Prioritized Action Plan\n\n"
-            "RULES: Keep 'Why it Happens' concise (1 sentence). Base review strictly on actual files. Output final Markdown directly."
+            "3. Security Findings (Markdown table with columns: Vulnerability | Why it Happens | Severity | Estimated Time | Owner)\n"
+            "4. Bug Findings (Markdown table with columns: Bug | Why it Happens | Severity | Estimated Time | Owner)\n"
+            "5. Recommendations & Prioritized Action Plan (Markdown table with columns: Priority | Action | Owner | Estimated Time)\n"
+            "RULES: Keep descriptions brief (1 sentence max). Output valid markdown and finish all tables completely."
         )
         
         synth_user = (
