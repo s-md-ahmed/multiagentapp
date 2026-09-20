@@ -54,7 +54,8 @@ async function startAnalysis() {
     loadingState.classList.remove('hidden');
 
     try {
-        const response = await fetch('http://127.0.0.1:8000/analyze', {
+        // Use relative path so it dynamically hits whichever domain the app is hosted on
+        const response = await fetch('/analyze', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -83,7 +84,7 @@ async function startAnalysis() {
 
     } catch (err) {
         console.error("Analysis execution error:", err);
-        errorState.innerText = `Error: ${err.message}. Make sure your FastAPI backend is running!`;
+        errorState.innerText = `Error: ${err.message}.`;
         errorState.classList.remove('hidden');
     } finally {
         analyzeBtn.disabled = false;
