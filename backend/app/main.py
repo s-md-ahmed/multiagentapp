@@ -19,14 +19,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Define paths safely using pathlib so it works both locally and in Docker
+# Resolve path to the frontend folder at the root level
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 
-# Mount the frontend directory for static assets (CSS, JS, images)
+# Mount the static assets (CSS, JS) so the browser can load them
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
-# Serve your main index.html file at the root URL
+# Serve the main index.html file at the root URL
 @app.get("/")
 def serve_frontend():
     index_file = FRONTEND_DIR / "index.html"
