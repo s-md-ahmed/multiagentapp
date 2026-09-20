@@ -294,23 +294,3 @@ footer {
     text-align: left;
 }
 
-/* Give specific breathing room to the columns */
-.markdown-content th:nth-child(1), 
-.markdown-content td:nth-child(1) {
-    width: 10%; /* Priority column */
-}
-
-.markdown-content th:nth-child(2), 
-.markdown-content td:nth-child(2) {
-    width: 50%; /* Action column */
-}
-
-.markdown-content th:nth-child(3), 
-.markdown-content td:nth-child(3) {
-    width: 25%; /* Owner column */
-}
-
-.markdown-content th:nth-child(4), 
-.markdown-content td:nth-child(4) {
-    width: 15%; /* Estimated Time column */
-}
