@@ -11,12 +11,11 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://multiagentapp-7zwv.onrender.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[str] = None
