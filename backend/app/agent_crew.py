@@ -26,29 +26,34 @@ def analyze_codebase(repo_url: str, api_key: str = None):
         print("--- [PARSE] Parsing repository files... ---")
         parsed_data = parse_repo(target_files)
         
+        # --- STRICT FILE-AWARE TOKEN SAFETY BUDGET ---
+        # We append files whole until we hit our cap. No mid-file slicing!
+        MAX_TOTAL_CHARS = 12000
         assembled_context = ""
+        current_chars = 0
+        truncated_flag = False
+
         for file_data in parsed_data:
             file_path = file_data["file_path"]
             content = file_data["content"]
-            assembled_context += f"File Path: {file_path}\nContent:\n{content}\n\n"
+            file_block = f"File Path: {file_path}\nContent:\n{content}\n\n"
+            
+            if current_chars + len(file_block) > MAX_TOTAL_CHARS:
+                truncated_flag = True
+                break
+                
+            assembled_context += file_block
+            current_chars += len(file_block)
 
-        # --- STRICT GLOBAL TOKEN SAFETY BUDGET ---
-        MAX_TOTAL_CHARS = 12000
-        if len(assembled_context) > MAX_TOTAL_CHARS:
-            print(f"--- [TRUNCATION] Total context ({len(assembled_context)} chars) exceeds strict safety budget. Trimming... ---")
-            assembled_context = (
-                assembled_context[:MAX_TOTAL_CHARS] 
-                + "\n\n--- [NOTE: Repository context was intentionally truncated for token budget optimization. "
-                  "Do NOT flag cut-off lines or missing ending brackets as code bugs or incomplete files. "
-                  "Analyze only the available code segments provided above.] ---"
-            )
+        if truncated_flag:
+            print(f"--- [TRUNCATION] Repository exceeded {MAX_TOTAL_CHARS} chars. Omitted remaining files to keep context whole. ---")
+            assembled_context += "\n--- [NOTE: Some peripheral files were omitted to respect token budget limits. Analyze the provided files fully.] ---\n"
 
         # Agent 1: Security Specialist
         print("--- [AGENT 1] Security Specialist scanning... ---")
         sec_sys = (
             "You are a cybersecurity expert. Scan the codebase strictly for vulnerabilities, hardcoded secrets, and injection risks. "
             "For every finding, provide a concise, direct 1-sentence explanation for the 'Why'. "
-            "NOTE: Some files may be truncated due to token budget limits; ignore partial cuts and do not report file truncation as a vulnerability. "
             "CRITICAL: Perform a single analysis pass. Output findings immediately and stop."
         )
         sec_completion = client.chat.completions.create(
@@ -67,7 +72,6 @@ def analyze_codebase(repo_url: str, api_key: str = None):
         bug_sys = (
             "You are a senior QA engineer. Scan the codebase strictly for logic bugs, unhandled exceptions, and edge-case failures. "
             "For every bug found, provide a concise, direct 1-sentence explanation for the 'Why'. "
-            "NOTE: Some files may be truncated due to token budget limits; ignore partial cuts and do not report truncation or missing code lines as bugs. "
             "CRITICAL: Perform a single analysis pass. Output findings immediately and stop."
         )
         bug_completion = client.chat.completions.create(
