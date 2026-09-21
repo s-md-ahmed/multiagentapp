@@ -33,19 +33,22 @@ def analyze_codebase(repo_url: str, api_key: str = None):
             assembled_context += f"File Path: {file_path}\nContent:\n{content}\n\n"
 
         # --- STRICT GLOBAL TOKEN SAFETY BUDGET ---
-        # Groq limit is 8,000 tokens total (Code + System Prompts). 
-        # We cap code context at 12,000 chars (~3,000 tokens) so system prompts (~2,000 tokens) 
-        # leave us comfortably around 5,000-6,000 total tokens—well under the 8k wall.
         MAX_TOTAL_CHARS = 12000
         if len(assembled_context) > MAX_TOTAL_CHARS:
             print(f"--- [TRUNCATION] Total context ({len(assembled_context)} chars) exceeds strict safety budget. Trimming... ---")
-            assembled_context = assembled_context[:MAX_TOTAL_CHARS] + "\n\n--- [TRUNCATED: Repository optimized for token budget] ---"
+            assembled_context = (
+                assembled_context[:MAX_TOTAL_CHARS] 
+                + "\n\n--- [NOTE: Repository context was intentionally truncated for token budget optimization. "
+                  "Do NOT flag cut-off lines or missing ending brackets as code bugs or incomplete files. "
+                  "Analyze only the available code segments provided above.] ---"
+            )
 
         # Agent 1: Security Specialist
         print("--- [AGENT 1] Security Specialist scanning... ---")
         sec_sys = (
             "You are a cybersecurity expert. Scan the codebase strictly for vulnerabilities, hardcoded secrets, and injection risks. "
             "For every finding, provide a concise, direct 1-sentence explanation for the 'Why'. "
+            "NOTE: Some files may be truncated due to token budget limits; ignore partial cuts and do not report file truncation as a vulnerability. "
             "CRITICAL: Perform a single analysis pass. Output findings immediately and stop."
         )
         sec_completion = client.chat.completions.create(
@@ -64,6 +67,7 @@ def analyze_codebase(repo_url: str, api_key: str = None):
         bug_sys = (
             "You are a senior QA engineer. Scan the codebase strictly for logic bugs, unhandled exceptions, and edge-case failures. "
             "For every bug found, provide a concise, direct 1-sentence explanation for the 'Why'. "
+            "NOTE: Some files may be truncated due to token budget limits; ignore partial cuts and do not report truncation or missing code lines as bugs. "
             "CRITICAL: Perform a single analysis pass. Output findings immediately and stop."
         )
         bug_completion = client.chat.completions.create(
@@ -78,7 +82,6 @@ def analyze_codebase(repo_url: str, api_key: str = None):
         bug_findings = bug_completion.choices[0].message.content
 
         # Agent 3: Lead Architect
-        
         print("--- [AGENT 3] Lead Architect compiling final review... ---")
         synth_sys = (
             "You are a Lead Software Architect. Synthesize the context into a clean Markdown review.\n"
@@ -104,7 +107,7 @@ def analyze_codebase(repo_url: str, api_key: str = None):
                 {"role": "user", "content": synth_user}
             ],
             temperature=0.1,
-            max_tokens=8000  # <-- Increase max tokens for the final synthesis pass
+            max_tokens=8000
         )
         
         print("--- [COMPLETE] Analysis finished successfully! ---")
