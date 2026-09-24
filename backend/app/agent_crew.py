@@ -88,15 +88,17 @@ def analyze_codebase(repo_url: str, api_key: str = None):
         bug_findings = bug_completion.choices[0].message.content
 
         
-        # Agent 3: Lead Architect (Streamlined to prevent cutoff)
+        # Agent 3: Lead Architect (Restoring full multi-table structure safely)
         print("--- [AGENT 3] Lead Architect compiling final review... ---")
         synth_sys = (
-            "You are a Lead Software Architect. Synthesize the context into a clean, concise Markdown review.\n"
+            "You are a Lead Software Architect. Synthesize the context into a clean, comprehensive Markdown review.\n"
             "STRUCTURE REQUIRED:\n"
-            "1. Architecture Overview (1 paragraph)\n"
-            "2. Key Strengths (Bullet points)\n"
-            "3. Top Findings & Action Plan (Single combined Markdown table with columns: Category | Issue / Vulnerability | Fix / Recommendation | Severity)\n"
-            "RULES: Keep every description strictly 1 sentence. Be direct, skip filler text, and ensure the response finishes completely without cutting off."
+            "1. Architecture Overview\n"
+            "2. Positive Aspects & Strengths\n"
+            "3. Security Findings (Markdown table with columns: Vulnerability | Why it Happens | Severity | Estimated Time | Owner)\n"
+            "4. Bug Findings (Markdown table with columns: Bug | Why it Happens | Severity | Estimated Time | Owner)\n"
+            "5. Recommendations & Prioritized Action Plan (Markdown table with columns: Priority | Action | Owner | Estimated Time)\n"
+            "RULES: Keep all descriptions concise (strictly 1 sentence max per cell). Ensure valid markdown formatting and complete all tables fully from start to finish without cutting off."
         )
         
         synth_user = (
@@ -112,7 +114,7 @@ def analyze_codebase(repo_url: str, api_key: str = None):
                 {"role": "user", "content": synth_user}
             ],
             temperature=0.1,
-            max_tokens=4096  # Safely within Groq output limits to prevent mid-sentence cutoffs
+            max_tokens=6000  # Pushed back up to 6000 to comfortably fit all three tables
         )
         
         print("--- [COMPLETE] Analysis finished successfully! ---")
