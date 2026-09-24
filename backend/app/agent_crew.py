@@ -93,12 +93,12 @@ def analyze_codebase(repo_url: str, api_key: str = None):
         synth_sys = (
             "You are a Lead Software Architect. Synthesize the context into a clean, comprehensive Markdown review.\n"
             "STRUCTURE REQUIRED:\n"
-            "1. Architecture Overview\n"
-            "2. Positive Aspects & Strengths\n"
+            "1. Architecture Overview (1 concise paragraph)\n"
+            "2. Positive Aspects & Strengths (3-4 bullet points max)\n"
             "3. Security Findings (Markdown table with columns: Vulnerability | Why it Happens | Severity | Estimated Time | Owner)\n"
             "4. Bug Findings (Markdown table with columns: Bug | Why it Happens | Severity | Estimated Time | Owner)\n"
             "5. Recommendations & Prioritized Action Plan (Markdown table with columns: Priority | Action | Owner | Estimated Time)\n"
-            "RULES: Keep all descriptions concise (strictly 1 sentence max per cell). Ensure valid markdown formatting and complete all tables fully from start to finish without cutting off."
+            "RULES: Keep all table cell descriptions strictly 1 short sentence. Ensure valid markdown and finish all 5 sections completely without cutting off."
         )
         
         synth_user = (
