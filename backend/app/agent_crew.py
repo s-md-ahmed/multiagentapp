@@ -26,9 +26,8 @@ def analyze_codebase(repo_url: str, api_key: str = None):
         print("--- [PARSE] Parsing repository files... ---")
         parsed_data = parse_repo(target_files)
         
-        # --- STRICT FILE-AWARE TOKEN SAFETY BUDGET ---
-        # We append files whole until we hit our cap. No mid-file slicing!
-        MAX_TOTAL_CHARS = 12000
+        # --- STRICT TOKEN SAFETY BUDGET ---
+        MAX_TOTAL_CHARS = 10000
         assembled_context = ""
         current_chars = 0
         truncated_flag = False
@@ -45,9 +44,12 @@ def analyze_codebase(repo_url: str, api_key: str = None):
             assembled_context += file_block
             current_chars += len(file_block)
 
+        if not assembled_context.strip():
+            raise ValueError("No valid code files found or repository is empty.")
+
         if truncated_flag:
-            print(f"--- [TRUNCATION] Repository exceeded {MAX_TOTAL_CHARS} chars. Omitted remaining files to keep context whole. ---")
-            assembled_context += "\n--- [NOTE: Some peripheral files were omitted to respect token budget limits. Analyze the provided files fully.] ---\n"
+            print(f"--- [TRUNCATION] Repository exceeded safe character budget. Omitted remaining files. ---")
+            assembled_context += "\n--- [NOTE: Peripheral files omitted to respect API token budget.] ---\n"
 
         # Agent 1: Security Specialist
         print("--- [AGENT 1] Security Specialist scanning... ---")
@@ -63,7 +65,7 @@ def analyze_codebase(repo_url: str, api_key: str = None):
                 {"role": "user", "content": f"Here is the repository codebase:\n\n{assembled_context}"}
             ],
             temperature=0.1,
-            max_tokens=4000
+            max_tokens=3000
         )
         security_findings = sec_completion.choices[0].message.content
 
@@ -81,7 +83,7 @@ def analyze_codebase(repo_url: str, api_key: str = None):
                 {"role": "user", "content": f"Here is the repository codebase:\n\n{assembled_context}"}
             ],
             temperature=0.1,
-            max_tokens=4000
+            max_tokens=3000
         )
         bug_findings = bug_completion.choices[0].message.content
 
@@ -111,7 +113,7 @@ def analyze_codebase(repo_url: str, api_key: str = None):
                 {"role": "user", "content": synth_user}
             ],
             temperature=0.1,
-            max_tokens=8000
+            max_tokens=6000
         )
         
         print("--- [COMPLETE] Analysis finished successfully! ---")
