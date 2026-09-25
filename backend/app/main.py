@@ -40,7 +40,7 @@ class RepoRequest(BaseModel):
 
 @app.post("/analyze")
 def analyze_repo(request: RepoRequest):
-    except HTTPException as he:
+    except HTTPException as e:
         raise he
     except Exception as e:
         err_str = str(e)
