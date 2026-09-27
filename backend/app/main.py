@@ -14,7 +14,7 @@ import sentry_sdk
 
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
-    send_default_pii=True,
+    send_default_pii=False,
     traces_sample_rate=1.0,
 )
 # ----------------------------------
