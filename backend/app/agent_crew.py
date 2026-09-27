@@ -87,8 +87,7 @@ def analyze_codebase(repo_url: str, api_key: str = None):
         )
         bug_findings = bug_completion.choices[0].message.content
 
-        
-        # Agent 3: Lead Architect (Restoring full multi-table structure safely)
+        # Agent 3: Lead Architect
         print("--- [AGENT 3] Lead Architect compiling final review... ---")
         synth_sys = (
             "You are a Lead Software Architect. Synthesize the context into a clean, comprehensive Markdown review.\n"
@@ -114,7 +113,7 @@ def analyze_codebase(repo_url: str, api_key: str = None):
                 {"role": "user", "content": synth_user}
             ],
             temperature=0.1,
-            max_tokens=6000  # Pushed back up to 6000 to comfortably fit all three tables
+            max_tokens=6000
         )
         
         print("--- [COMPLETE] Analysis finished successfully! ---")
