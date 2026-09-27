@@ -9,7 +9,7 @@ WORKDIR /app
 
 # Copy requirements from the backend folder and install python packages
 COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.tx
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the project files
 COPY . .
