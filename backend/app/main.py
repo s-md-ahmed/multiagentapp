@@ -9,6 +9,16 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+
+import sentry_sdk
+
+sentry_sdk.init(
+    dsn="https://1205ca2d22d9b3e4f15c4e734e93b6ba@o4512157934092288.ingest.de.sentry.io/4512157967646800",
+    send_default_pii=True,
+    traces_sample_rate=1.0,
+)
+# ----------------------------------
+
 app = FastAPI()
 
 app.add_middleware(
@@ -33,6 +43,11 @@ def serve_frontend():
     if index_file.exists():
         return FileResponse(str(index_file))
     return {"error": "index.html not found in frontend directory"}
+
+# Optional: Dedicated debug route to test Sentry error tracking live
+@app.get("/sentry-debug")
+async def trigger_error():
+    division_by_zero = 1 / 0
 
 class RepoRequest(BaseModel):
     repo_url: str
