@@ -55,7 +55,7 @@ class RepoRequest(BaseModel):
 
 @app.post("/analyze")
 def analyze_repo(request: RepoRequest):
-    trigger_crash = non_existent_variable + 10
+    
     try:
         print(f"--- [DEBUG] Received request for repo: {request.repo_url} ---")
         
