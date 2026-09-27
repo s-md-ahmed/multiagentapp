@@ -4,3 +4,4 @@ groq
 pydantic
 python-dotenv
 gitpython
+sentry-sdk
