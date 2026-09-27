@@ -13,7 +13,7 @@ from pydantic import BaseModel
 import sentry_sdk
 
 sentry_sdk.init(
-    dsn="https://1205ca2d22d9b3e4f15c4e734e93b6ba@o4512157934092288.ingest.de.sentry.io/4512157967646800",
+    dsn=os.getenv("SENTRY_DSN"),
     send_default_pii=True,
     traces_sample_rate=1.0,
 )
