@@ -4,7 +4,7 @@ from pathlib import Path
 from .parser import parse_repo
 from groq import Groq
 from .git_handler import clone_repo_to_temp
-from dotenv import load_doten
+from dotenv import load_dotenv
 
 env_path = Path(__file__).resolve().parent.parent / '.env'
 load_dotenv(dotenv_path=env_path)
