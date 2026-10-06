@@ -49,20 +49,24 @@ def serve_frontend():
 async def trigger_error():
     division_by_zero = 1 / 0
 @app.get("/run-evals")
-def run_evals_route():
+def run_evals_route(groq_api_key: Optional[str] = None):
     """Triggers a live multi-agent evaluation test suite using a test repo."""
     from .agent_crew import analyze_codebase
     
+    active_key = groq_api_key or os.getenv("GROQ_API_KEY")
+    if not active_key:
+        return {"status": "FAILED", "error": "No Groq API key provided. Pass it like ?groq_api_key=gsk_..."}
+
     test_repo = "https://github.com/octocat/Hello-World"
     try:
-        result = analyze_codebase(repo_url=test_repo)
+        result = analyze_codebase(repo_url=test_repo, api_key=active_key)
     except Exception as e:
         return {"status": "FAILED", "error": str(e)}
 
     required_sections = [
         "Architecture Overview",
         "Positive Aspects & Strengths",
-         "Security Findings",
+        "Security Findings",
         "Bug Findings",
         "Recommendations & Prioritized Action Plan"
     ]
@@ -75,9 +79,9 @@ def run_evals_route():
     return {
         "status": "PASS", 
         "message": "All multi-agent outputs, structures, and markdown tables rendered successfully!",
-        "preview": result[:300] + "..." # First 300 chars of the output
+        "preview": str(result)[:300] + "..."
     }
-class RepoRequest(BaseModel):
+    class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[str] = None
 
