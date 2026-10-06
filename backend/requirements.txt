@@ -1,6 +1,8 @@
 fastapi
 uvicorn
 groq
+langgraph
+langchain-groq
 pydantic
 python-dotenv
 gitpython
