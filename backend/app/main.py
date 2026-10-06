@@ -62,7 +62,7 @@ def run_evals_route():
     required_sections = [
         "Architecture Overview",
         "Positive Aspects & Strengths",
-        * "Security Findings",
+         "Security Findings",
         "Bug Findings",
         "Recommendations & Prioritized Action Plan"
     ]
