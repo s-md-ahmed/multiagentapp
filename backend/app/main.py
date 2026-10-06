@@ -81,7 +81,7 @@ def run_evals_route(groq_api_key: Optional[str] = None):
         "message": "All multi-agent outputs, structures, and markdown tables rendered successfully!",
         "preview": str(result)[:300] + "..."
     }
-    class RepoRequest(BaseModel):
+class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[str] = None
 
