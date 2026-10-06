@@ -7,3 +7,4 @@ pydantic
 python-dotenv
 gitpython
 sentry-sdk
+langsmith
