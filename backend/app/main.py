@@ -57,7 +57,7 @@ def run_evals_route(groq_api_key: Optional[str] = None):
     if not active_key:
         return {"status": "FAILED", "error": "No Groq API key provided. Pass it like ?groq_api_key=gsk_..."}
 
-    test_repo = "https://github.com/octocat/Hello-World"
+    test_repo = "https://github.com/s-md-ahmed/multiagentapp"
     try:
         result = analyze_codebase(repo_url=test_repo, api_key=active_key)
     except Exception as e:
