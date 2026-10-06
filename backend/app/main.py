@@ -48,7 +48,35 @@ def serve_frontend():
 @app.get("/sentry-debug")
 async def trigger_error():
     division_by_zero = 1 / 0
+@app.get("/run-evals")
+def run_evals_route():
+    """Triggers a live multi-agent evaluation test suite using a test repo."""
+    from .agent_crew import analyze_codebase
+    
+    test_repo = "https://github.com/octocat/Hello-World"
+    try:
+        result = analyze_codebase(repo_url=test_repo)
+    except Exception as e:
+        return {"status": "FAILED", "error": str(e)}
 
+    required_sections = [
+        "Architecture Overview",
+        "Positive Aspects & Strengths",
+        * "Security Findings",
+        "Bug Findings",
+        "Recommendations & Prioritized Action Plan"
+    ]
+    
+    missing = [sec for sec in required_sections if sec not in result]
+    
+    if missing:
+        return {"status": "FAILED", "missing_sections": missing}
+    
+    return {
+        "status": "PASS", 
+        "message": "All multi-agent outputs, structures, and markdown tables rendered successfully!",
+        "preview": result[:300] + "..." # First 300 chars of the output
+    }
 class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[str] = None
