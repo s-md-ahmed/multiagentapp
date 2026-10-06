@@ -4,19 +4,27 @@ import traceback
 from pathlib import Path
 from typing import Optional
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-
+import time
 
 import sentry_sdk
 
+# 1. Initialize Sentry (Infra & Backend Ops Observability)
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
     send_default_pii=False,
     traces_sample_rate=1.0,
 )
+
+# 2. Configure LangSmith (Agentic Ops Observability)
+# This hooks LangGraph execution traces straight into LangSmith if configured in Render
+if os.getenv("LANGCHAIN_API_KEY"):
+    os.environ["LANGCHAIN_TRACING_V2"] = "true"
+    os.environ.setdefault("LANGCHAIN_PROJECT", "multi-agent-code-reviewer")
+
 # ----------------------------------
 
 app = FastAPI()
@@ -44,12 +52,10 @@ def serve_frontend():
         return FileResponse(str(index_file))
     return {"error": "index.html not found in frontend directory"}
 
-# Optional: Dedicated debug route to test Sentry error tracking live
+# Dedicated debug route to test Sentry error tracking live
 @app.get("/sentry-debug")
 async def trigger_error():
     division_by_zero = 1 / 0
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
-import time
 
 @app.get("/run-evals", response_class=HTMLResponse)
 def run_evals_route(groq_api_key: Optional[str] = None):
@@ -74,6 +80,10 @@ def run_evals_route(groq_api_key: Optional[str] = None):
 
     test_repo = "https://github.com/s-md-ahmed/multiagentapp"
     
+    # Check LangSmith status for display
+    langsmith_active = bool(os.getenv("LANGCHAIN_API_KEY"))
+    tracing_status = "Active & Streaming 🚀" if langsmith_active else "Disabled (Set LANGCHAIN_API_KEY)"
+
     # Start tracking execution latency
     start_time = time.time()
     try:
@@ -123,8 +133,8 @@ def run_evals_route(groq_api_key: Optional[str] = None):
             <!-- Header -->
             <div class="flex justify-between items-center bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
                 <div>
-                    <h1 class="text-2xl font-black tracking-tight text-white">⚡ Agent Performance Telemetry</h1>
-                    <p class="text-slate-400 text-sm mt-1">Runtime metrics for <span class="text-indigo-400 font-mono">{test_repo}</span></p>
+                    <h1 class="text-2xl font-black tracking-tight text-white">⚡ Agent Telemetry & Tracing</h1>
+                    <p class="text-slate-400 text-sm mt-1">LangSmith Status: <span class="text-indigo-400 font-medium">{tracing_status}</span></p>
                 </div>
                 <div>
                     <span class="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider {'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' if status == 'PASS' else 'bg-red-500/10 text-red-400 border border-red-500/30'}">
@@ -162,13 +172,13 @@ def run_evals_route(groq_api_key: Optional[str] = None):
     </body>
     </html>
     """
+
 class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[str] = None
 
 @app.post("/analyze")
 def analyze_repo(request: RepoRequest):
-    
     try:
         print(f"--- [DEBUG] Received request for repo: {request.repo_url} ---")
         
