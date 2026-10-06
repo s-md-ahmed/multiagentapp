@@ -48,20 +48,45 @@ def serve_frontend():
 @app.get("/sentry-debug")
 async def trigger_error():
     division_by_zero = 1 / 0
-@app.get("/run-evals")
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+
+@app.get("/run-evals", response_class=HTMLResponse)
 def run_evals_route(groq_api_key: Optional[str] = None):
-    """Triggers a live multi-agent evaluation test suite using a test repo."""
+    """Triggers a live multi-agent evaluation test suite and renders a gorgeous HTML scorecard."""
     from .agent_crew import analyze_codebase
     
     active_key = groq_api_key or os.getenv("GROQ_API_KEY")
     if not active_key:
-        return {"status": "FAILED", "error": "No Groq API key provided. Pass it like ?groq_api_key=gsk_..."}
+        return """
+        <html>
+            <head><title>Eval Error</title><script src="https://cdn.tailwindcss.com"></script></head>
+            <body class="bg-slate-950 text-slate-100 flex items-center justify-center h-screen">
+                <div class="bg-slate-900 border border-red-500/30 p-8 rounded-xl max-w-md text-center shadow-2xl">
+                    <div class="text-red-400 text-4xl mb-3">⚠️</div>
+                    <h1 class="text-xl font-bold mb-2">Missing API Key</h1>
+                    <p class="text-slate-400 text-sm mb-4">No Groq API key provided. Pass it in your URL query string like:</p>
+                    <code class="bg-slate-950 px-3 py-1.5 rounded text-xs text-emerald-400 block break-all">/run-evals?groq_api_key=gsk_...</code>
+                </div>
+            </body>
+        </html>
+        """
 
     test_repo = "https://github.com/s-md-ahmed/multiagentapp"
     try:
         result = analyze_codebase(repo_url=test_repo, api_key=active_key)
     except Exception as e:
-        return {"status": "FAILED", "error": str(e)}
+        return f"""
+        <html>
+            <head><title>Eval Failed</title><script src="https://cdn.tailwindcss.com"></script></head>
+            <body class="bg-slate-950 text-slate-100 flex items-center justify-center h-screen">
+                <div class="bg-slate-900 border border-red-500/30 p-8 rounded-xl max-w-md text-center shadow-2xl">
+                    <div class="text-red-400 text-4xl mb-3">❌</div>
+                    <h1 class="text-xl font-bold mb-2">Execution Failed</h1>
+                    <p class="text-red-300 text-xs font-mono bg-slate-950 p-3 rounded">{str(e)}</p>
+                </div>
+            </body>
+        </html>
+        """
 
     required_sections = [
         "Architecture Overview",
@@ -72,15 +97,64 @@ def run_evals_route(groq_api_key: Optional[str] = None):
     ]
     
     missing = [sec for sec in required_sections if sec not in result]
+    status = "PASS" if not missing else "FAILED"
     
-    if missing:
-        return {"status": "FAILED", "missing_sections": missing}
-    
-    return {
-        "status": "PASS", 
-        "message": "All multi-agent outputs, structures, and markdown tables rendered successfully!",
-        "preview": str(result)[:300] + "..."
-    }
+    table_markers = result.count("|")
+    action_items_estimate = result.lower().count("priority") + result.lower().count("backend team")
+    sections_passed_str = f"{len(required_sections) - len(missing)}/{len(required_sections)}"
+
+    return f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Multi-Agent Evaluation Dashboard</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body class="bg-slate-950 text-slate-100 font-sans min-h-screen p-8">
+        <div class="max-w-4xl mx-auto space-y-6">
+            <!-- Header -->
+            <div class="flex justify-between items-center bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
+                <div>
+                    <h1 class="text-2xl font-black tracking-tight text-white">🤖 Multi-Agent Eval Scorecard</h1>
+                    <p class="text-slate-400 text-sm mt-1">Automated validation metrics for <span class="text-indigo-400 font-mono">{test_repo}</span></p>
+                </div>
+                <div>
+                    <span class="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider {'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' if status == 'PASS' else 'bg-red-500/10 text-red-400 border border-red-500/30'}">
+                        {status}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Metrics Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-lg">
+                    <p class="text-xs text-slate-400 font-medium">Sections Passed</p>
+                    <p class="text-2xl font-bold text-white mt-1">{sections_passed_str}</p>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-lg">
+                    <p class="text-xs text-slate-400 font-medium">Table Density Score</p>
+                    <p class="text-2xl font-bold text-indigo-400 mt-1">{table_markers} <span class="text-xs text-slate-500 font-normal">markers</span></p>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-lg">
+                    <p class="text-xs text-slate-400 font-medium">Action Items Tracked</p>
+                    <p class="text-2xl font-bold text-emerald-400 mt-1">{action_items_estimate}</p>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-lg">
+                    <p class="text-xs text-slate-400 font-medium">Output Characters</p>
+                    <p class="text-2xl font-bold text-amber-400 mt-1">{len(result)}</p>
+                </div>
+            </div>
+
+            <!-- Preview Card -->
+            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
+                <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Live Analysis Snippet Preview</h2>
+                <pre class="bg-slate-950 p-4 rounded-xl text-xs text-slate-300 font-mono overflow-x-auto border border-slate-800/80 max-h-60">{result[:600]}...</pre>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
 class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[str] = None
