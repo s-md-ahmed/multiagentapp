@@ -14,7 +14,8 @@ Traditional automated linters look for rigid syntax matching, and single-prompt 
 
 ## System Architecture & Workflow
 The application follows an isolated sandbox pipeline: cloning repositories securely, filtering out peripheral assets to prevent token bloat, executing parallelized agent scans, and synthesizing clean markdown reports.
-<img width="4015" height="7968" alt="diagram (2)" src="https://github.com/user-attachments/assets/aec622c4-9b67-4d8a-a30b-cf38d622315e" />
+<img width="4157" height="8481" alt="diagram (6)" src="https://github.com/user-attachments/assets/dd2dbc00-39f4-443a-9820-e007ff14ee24" />
+
 
 
 ### Why This Architecture? (Design Decisions & Trade-offs)
