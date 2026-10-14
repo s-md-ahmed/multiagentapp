@@ -1,70 +1,50 @@
 # AI Repo Analyzer (Multi-Agent Code Reviewer)
 
-A full-stack, production-ready multi-agent engineering code review system powered by the Groq LPU inference engine. It deploys a specialized digital pod—consisting of a Security Specialist, a QA Bug Hunter, and a Lead Software Architect—to analyze public GitHub repositories and generate comprehensive structured markdown reviews.
+A full-stack, production-ready multi-agent engineering code review system powered by LangGraph and the Groq LPU inference engine. It deploys a specialized digital pod—consisting of a Security Specialist, a QA Bug Hunter, and a Lead Software Architect—to analyze public GitHub repositories and generate comprehensive structured markdown reviews.
 
-**Live Demo:** [https://multiagentapp-7zwv.onrender.com/](https://multiagentapp-7zwv.onrender.com/)  
-*(Note: Hosted on a free-tier instance, so please allow a few seconds for the server to spin up on an initial request.)*
+Live Demo: https://multiagentapp-7zwv.onrender.com/
+(Note: Hosted on a free-tier instance; please allow a few seconds for the server to spin up on an initial request.)
 
 ---
 
 ## The Engineering Challenge (Why Multi-Agent Code Review?)
-Traditional automated linters look for rigid syntax matching, and single-prompt LLM code reviews often suffer from "attention dilution," missing deep security vulnerabilities or edge-case runtime bugs when forced to evaluate everything at once. This project solves that by enforcing a **multi-agent separation of concerns**: dividing the review pipeline into isolated expert personas, passing structured telemetry between them, and synthesizing a prioritized executive action plan.
+
+Traditional automated linters look for rigid syntax matching, and single-prompt LLM code reviews often suffer from "attention dilution," missing deep security vulnerabilities or edge-case runtime bugs when forced to evaluate everything at once. 
+
+This project solves that by enforcing a multi-agent separation of concerns: dividing the review pipeline into isolated expert personas using LangGraph, passing structured telemetry between nodes, tracking execution traces via LangSmith, and synthesizing a prioritized executive action plan while monitoring system stability with Sentry.
 
 ---
 
-## System Architecture & Workflow
-The application follows an isolated sandbox pipeline: cloning repositories securely, filtering out peripheral assets to prevent token bloat, executing parallelized agent scans, and synthesizing clean markdown reports.
-<img width="4157" height="8481" alt="diagram (6)" src="https://github.com/user-attachments/assets/dd2dbc00-39f4-443a-9820-e007ff14ee24" />
+## Tech Stack & Observability
 
-
-
-### Why This Architecture? (Design Decisions & Trade-offs)
-* **Why Multi-Agent Specialization over a Single Prompt?**
-  * *The Problem:* Forcing a single LLM prompt to simultaneously find cybersecurity exploits, logic bugs, and structural architecture improvements causes context degradation and superficial outputs.
-  * *The Solution:* Decoupling the pipeline into specialized sequential steps—Agent 1 (Security Expert) and Agent 2 (QA Bug Hunter)—feeds clean, domain-specific insights directly into Agent 3 (Lead Architect) for final executive synthesis.
-
-* **Why Isolated Temporary Sandboxes (`tempfile.TemporaryDirectory`)?**
-  * *The Problem:* Cloning external GitHub repositories directly into persistent server storage introduces race conditions, disk bloat, and severe cross-tenant security vulnerabilities.
-  * *The Solution:* Every analysis request initializes a strictly isolated, ephemeral temporary directory that is automatically purged via custom exception-safe cleanup handles upon completion.
-
-* **Why Strict Token Safety Budgets and File Filtering?**
-  * *The Problem:* Repositories often contain massive build artifacts, documentation, or binary files that blow past LLM context limits and incur unnecessary token costs.
-  * *The Solution:* The git handler ignores non-code directories (`.git`, `node_modules`, `build`, etc.), explicitly excludes `.ipynb` files to prevent JSON bloat, and enforces strict line-count/character budgets per file.
-
-* **Why Client-Side BYOK (Bring Your Own Key) via JSON Payload?**
-  * *The Problem:* Hardcoding global API keys or routing all public traffic through a single server key quickly triggers rate limits (`429`) and creates infrastructure cost liabilities.
-  * *The Solution:* Users provide their own Groq API key (`gsk_...`), passed securely over POST JSON payloads for runtime isolation without hitting persistent databases.
+* Core Engine & Backend: Python 3.12, FastAPI, Uvicorn, Pydantic, GitPython
+* AI Orchestration & LLM: LangGraph, LangSmith (Tracing & Telemetry), Groq SDK (llama-3.3-70b-versatile)
+* System Observability & Monitoring: Sentry (Real-time exception tracking and runtime error handling)
+* Frontend: Vanilla HTML5, Modern CSS3 (Dark Mode UI), JavaScript (Fetch API), Marked.js
+* DevOps & Infrastructure: Docker (python:3.12-slim), GitHub Actions CI/CD, Render
 
 ---
 
-## Core Features
-* **Multi-Agent Engineering Pod:** Sequential execution loop utilizing isolated system instructions for cybersecurity scanning, QA bug hunting, and architectural synthesis.
-* **Smart Repository Filtering:** Automatically strips out dependency directories and heavy notebooks (`.ipynb`), focusing strictly on high-value code (`.py`, `.js`, `.ts`, `.cpp`, `.java`, etc.).
-* **Bring Your Own Key (BYOK) Security:** Allows users to supply their personal Groq API key with client-side format validation (`gsk_...`).
-* **Strict Token Guardrails:** Enforces a 200-line cap per file and total character length caps to respect model limits safely.
-* **Resilient Error Handling:** Intercepts git clone failures, invalid URLs, and context length overages, returning clean HTTP status codes (`400`) and sanitized UI feedback.
+## System Architecture & State Workflow
 
----
+The application follows an isolated sandbox pipeline: cloning repositories securely, filtering out peripheral assets to prevent token bloat, executing parallelized agent scans via LangGraph nodes, and synthesizing clean markdown reports.
 
-## Tech Stack
-* **Backend:** FastAPI, Uvicorn, GitPython, Python-Dotenv, Pydantic
-* **AI / ML:** Groq SDK (`groq`), Custom System Prompts
-* **Frontend:** Vanilla HTML5, CSS3, Modern JavaScript (Fetch API), Marked.js (Markdown Parsing)
-* **Infrastructure:** Docker (`python:3.12-slim`), Render
+### Agent Graph State & Node Workflow
+```mermaid
+graph TD
+    classDef startStyle fill:#2563eb,color:#fff,stroke:#1d4ed8,stroke-width:2px;
+    classDef agentStyle fill:#0f172a,color:#38bdf8,stroke:#0284c7,stroke-width:2px;
+    classDef synthStyle fill:#14532d,color:#4ade80,stroke:#16a34a,stroke-width:2px;
+    classDef stateStyle fill:#334155,color:#f8fafc,stroke:#475569,stroke-width:1px;
 
----
-
-## Project Structure
-```text
-├── backend/
-│   ├── main.py             # FastAPI entrypoint, routing, static mounting, and error middleware
-│   └── services/
-│       ├── agent_crew.py   # Multi-agent orchestration (Security, QA, Lead Architect pipelines)
-│       ├── git_handler.py  # Secure temporary cloning, file extension filtering, and cleanup hooks
-│       └── parser.py       # Line-by-line file parser with truncation and token safety budgets
-├── frontend/
-│   ├── index.html          # UI shell containing BYOK input, repo URL bar, and loading states
-│   ├── style.css           # Modern dark-mode styling with pulse animations and responsive cards
-│   └── app.js              # Client-side validation, fetch routing, and Markdown rendering logic
-├── requirements.txt        # Python package dependencies
-└── Dockerfile              # Container configuration file
+    START([User Repo Request]) :::startStyle --> INGEST[Clone & Sanitize Codebase<br/><i>git_handler.py</i>] :::stateStyle
+    INGEST --> PARSE[Filter & Build Context Budget<br/><i>parser.py</i>] :::stateStyle
+    
+    PARSE --> AGENT_SEC[Agent 1: Security Specialist<br/><i>OWASP, Hardcoded Keys, Injections</i>] :::agentStyle
+    PARSE --> AGENT_QA[Agent 2: QA Bug Hunter<br/><i>Edge Cases, Null Pointers, Logic Errors</i>] :::agentStyle
+    
+    AGENT_SEC --> STATE[LangGraph State Aggregator<br/><i>Merges Findings & Telemetry</i>] :::stateStyle
+    AGENT_QA --> STATE
+    
+    STATE --> AGENT_ARCH[Agent 3: Lead Architect<br/><i>Synthesizes Priorities & Action Plan</i>] :::synthStyle
+    AGENT_ARCH --> OUTPUT([Formatted Markdown Review]) :::startStyle
