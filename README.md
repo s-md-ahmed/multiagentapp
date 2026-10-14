@@ -21,7 +21,7 @@ This project solves that by enforcing a multi-agent separation of concerns: divi
 - AI Orchestration & LLM: LangGraph, LangSmith (Tracing & Telemetry), Groq SDK (llama-3.3-70b-versatile)
 - System Observability & Monitoring: Sentry (Real-time exception tracking and runtime error handling)
 - Frontend: Vanilla HTML5, Modern CSS3 (Dark Mode UI), JavaScript (Fetch API), Marked.js
-- DevOps & Infrastructure: Docker (python:3.12-slim), GitHub Actions CI/CD, Render
+- DevOps & Infrastructure: Docker (python:3.12-slim), GitHub Actions CI/CD (`ci-cd-pipeline.yaml`), Render
 
 ---
 
@@ -40,7 +40,6 @@ LangSmith provides deep debugging and telemetry for non-deterministic LLM workfl
 
 <img width="862" height="908" alt="Screenshot 2026-10-14 143152" src="https://github.com/user-attachments/assets/04a4ef84-e1df-4270-9752-20cea6d61f49" />
 
-
 ---
 
 ## Sentry Exception & Performance Monitoring
@@ -49,6 +48,13 @@ Sentry is integrated directly into the FastAPI backend service to capture unhand
 
 <img width="1024" height="480" alt="image" src="https://github.com/user-attachments/assets/1304339a-ff7b-49cc-86df-8c0dcc62f6be" />
 
+---
+
+## CI/CD Pipeline & Deployment Workflow (`ci-cd-pipeline.yaml`)
+
+The project uses an automated GitHub Actions pipeline (`.github/workflows/ci-cd-pipeline.yaml`) to ensure absolute code reliability before updates reach production:
+- **Automated Code Checks**: Whenever code is pushed or opened in a pull request on the `main` branch, GitHub Actions automatically sets up a clean Python 3.12 environment, installs dependencies from `requirements.txt`, and validates server syntax and health.
+- **Gated Cloud Deployment**: Configured directly with Render so that live production updates are pushed and deployed **only** after all automated GitHub CI checks pass successfully, preventing broken code or syntax errors from crashing the live app.
 
 ---
 
@@ -90,6 +96,9 @@ Sentry is integrated directly into the FastAPI backend service to capture unhand
 ## Project Structure
 
 ```text
+├── .github/
+│   └── workflows/
+│       └── ci-cd-pipeline.yaml # GitHub Actions automated CI/CD workflow
 ├── backend/
 │   ├── main.py             # FastAPI entrypoint, Sentry initialization, static mounting, & error middleware
 │   └── services/
