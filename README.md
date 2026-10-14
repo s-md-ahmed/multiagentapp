@@ -54,7 +54,7 @@ graph TD
     class START,OUTPUT startStyle;
     class INGEST,PARSE,STATE stateStyle;
     class AGENT_SEC,AGENT_QA agentStyle;
-    class AGENT_ARCH synthStyle;
+    class AGENT_ARCH synthStyle;```
 
 **## Langsmith Observability**
 LangSmith is integrated to provide deep debugging and telemetry for non-deterministic LLM workflows. In this multi-agent architecture, it tracks state transitions across nodes (loader -> bug_hunter -> security -> architect), monitors token consumption budgets per model call, and logs exact execution latency.
