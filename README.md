@@ -30,7 +30,8 @@ This project solves that by enforcing a multi-agent separation of concerns: divi
 The application follows an isolated sandbox pipeline: cloning repositories securely, filtering out peripheral assets to prevent token bloat, executing parallelized agent scans via LangGraph nodes, and synthesizing clean markdown reports.
 
 ### Agent Graph Architecture Diagram
-*(Paste your architecture diagram image here)*
+*<img width="420" height="692" alt="Screenshot 2026-10-14 141841" src="https://github.com/user-attachments/assets/b737d026-e0e0-4030-9010-b0626ca86257" />
+*
 
 ---
 
@@ -38,7 +39,8 @@ The application follows an isolated sandbox pipeline: cloning repositories secur
 
 LangSmith is integrated to provide deep debugging, execution tracing, and telemetry for non-deterministic LLM workflows. In this multi-agent architecture, it tracks state transitions across nodes (`loader` -> `bug_hunter` -> `security` -> `architect`), monitors token consumption budgets per model call, and logs exact execution latency. Furthermore, the telemetry data empirically proves asynchronous parallel node execution: the `security` agent ($2.77\text{s}$) finishes inside the execution window of the heavier `bug_hunter` agent ($4.57\text{s}$), demonstrating that LangGraph runs both analysis pods concurrently before passing aggregated state to the `architect` ($31.79\text{s}$).
 
-*(Paste your LangSmith trace screenshot here)*
+*<img width="862" height="908" alt="Screenshot 2026-10-14 143152" src="https://github.com/user-attachments/assets/a54443c9-9e53-4b77-98ba-c4b63cd4be65" />
+*
 
 ---
 
