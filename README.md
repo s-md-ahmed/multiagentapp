@@ -29,24 +29,26 @@ This project solves that by enforcing a multi-agent separation of concerns: divi
 
 The application follows an isolated sandbox pipeline: cloning repositories securely, filtering out peripheral assets to prevent token bloat, executing parallelized agent scans via LangGraph nodes, and synthesizing clean markdown reports.
 
-### Agent Graph Architecture Diagram
-*<img width="420" height="692" alt="Screenshot 2026-10-14 141841" src="https://github.com/user-attachments/assets/b737d026-e0e0-4030-9010-b0626ca86257" />
-*
+### Agent Graph State & Node Workflow
+<img width="420" height="692" alt="Screenshot 2026-10-14 141841" src="https://github.com/user-attachments/assets/7028a388-5139-4d97-a88b-5b55b24abc69" />
 
 ---
 
 ## LangSmith Observability & Tracing
 
-LangSmith is integrated to provide deep debugging, execution tracing, and telemetry for non-deterministic LLM workflows. In this multi-agent architecture, it tracks state transitions across nodes (`loader` -> `bug_hunter` -> `security` -> `architect`), monitors token consumption budgets per model call, and logs exact execution latency. Furthermore, the telemetry data empirically proves asynchronous parallel node execution: the `security` agent ($2.77\text{s}$) finishes inside the execution window of the heavier `bug_hunter` agent ($4.57\text{s}$), demonstrating that LangGraph runs both analysis pods concurrently before passing aggregated state to the `architect` ($31.79\text{s}$).
+LangSmith provides deep debugging and telemetry for non-deterministic LLM workflows. In this trace, it empirically proves asynchronous parallel node execution: the `security` agent ($2.77\text{s}$) finishes inside the execution window of the heavier `bug_hunter` agent ($4.57\text{s}$), demonstrating that LangGraph runs both analysis pods concurrently before passing aggregated state to the `architect` ($31.79\text{s}$).
 
-*<img width="862" height="908" alt="Screenshot 2026-10-14 143152" src="https://github.com/user-attachments/assets/a54443c9-9e53-4b77-98ba-c4b63cd4be65" />
-*
+<img width="862" height="908" alt="Screenshot 2026-10-14 143152" src="https://github.com/user-attachments/assets/04a4ef84-e1df-4270-9752-20cea6d61f49" />
+
 
 ---
 
 ## Sentry Exception & Performance Monitoring
 
 Sentry is integrated directly into the FastAPI backend service to capture unhandled runtime exceptions, Git cloning timeouts, network failures, and external API rate limits (HTTP 429) in real time. This ensures production system stability and provides immediate actionable stack traces for debugging server-side faults.
+
+<img width="1024" height="480" alt="image" src="https://github.com/user-attachments/assets/1304339a-ff7b-49cc-86df-8c0dcc62f6be" />
+
 
 ---
 
