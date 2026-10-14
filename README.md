@@ -37,14 +37,14 @@ graph TD
     classDef synthStyle fill:#14532d,color:#4ade80,stroke:#16a34a,stroke-width:2px;
     classDef stateStyle fill:#334155,color:#f8fafc,stroke:#475569,stroke-width:1px;
 
-    START([User Repo Request]) :::startStyle --> INGEST[Clone & Sanitize Codebase<br/><i>git_handler.py</i>] :::stateStyle
-    INGEST --> PARSE[Filter & Build Context Budget<br/><i>parser.py</i>] :::stateStyle
+    START(["User Repo Request"]) :::startStyle --> INGEST["Clone & Sanitize Codebase<br/><i>git_handler.py</i>"] :::stateStyle
+    INGEST --> PARSE["Filter & Build Context Budget<br/><i>parser.py</i>"] :::stateStyle
     
-    PARSE --> AGENT_SEC[Agent 1: Security Specialist<br/><i>OWASP, Hardcoded Keys, Injections</i>] :::agentStyle
-    PARSE --> AGENT_QA[Agent 2: QA Bug Hunter<br/><i>Edge Cases, Null Pointers, Logic Errors</i>] :::agentStyle
+    PARSE --> AGENT_SEC["Agent 1: Security Specialist<br/><i>OWASP, Hardcoded Keys, Injections</i>"] :::agentStyle
+    PARSE --> AGENT_QA["Agent 2: QA Bug Hunter<br/><i>Edge Cases, Null Pointers, Logic Errors</i>"] :::agentStyle
     
-    AGENT_SEC --> STATE[LangGraph State Aggregator<br/><i>Merges Findings & Telemetry</i>] :::stateStyle
+    AGENT_SEC --> STATE["LangGraph State Aggregator<br/><i>Merges Findings & Telemetry</i>"] :::stateStyle
     AGENT_QA --> STATE
     
-    STATE --> AGENT_ARCH[Agent 3: Lead Architect<br/><i>Synthesizes Priorities & Action Plan</i>] :::synthStyle
-    AGENT_ARCH --> OUTPUT([Formatted Markdown Review]) :::startStyle
+    STATE --> AGENT_ARCH["Agent 3: Lead Architect<br/><i>Synthesizes Priorities & Action Plan</i>"] :::synthStyle
+    AGENT_ARCH --> OUTPUT(["Formatted Markdown Review"]) :::startStyle
