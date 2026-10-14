@@ -17,11 +17,11 @@ This project solves that by enforcing a multi-agent separation of concerns: divi
 
 ## Tech Stack & Observability
 
-* Core Engine & Backend: Python 3.12, FastAPI, Uvicorn, Pydantic, GitPython
-* AI Orchestration & LLM: LangGraph, LangSmith (Tracing & Telemetry), Groq SDK (llama-3.3-70b-versatile)
-* System Observability & Monitoring: Sentry (Real-time exception tracking and runtime error handling)
-* Frontend: Vanilla HTML5, Modern CSS3 (Dark Mode UI), JavaScript (Fetch API), Marked.js
-* DevOps & Infrastructure: Docker (python:3.12-slim), GitHub Actions CI/CD, Render
+- Core Engine & Backend: Python 3.12, FastAPI, Uvicorn, Pydantic, GitPython
+- AI Orchestration & LLM: LangGraph, LangSmith (Tracing & Telemetry), Groq SDK (llama-3.3-70b-versatile)
+- System Observability & Monitoring: Sentry (Real-time exception tracking and runtime error handling)
+- Frontend: Vanilla HTML5, Modern CSS3 (Dark Mode UI), JavaScript (Fetch API), Marked.js
+- DevOps & Infrastructure: Docker (python:3.12-slim), GitHub Actions CI/CD, Render
 
 ---
 
@@ -55,7 +55,3 @@ graph TD
     class INGEST,PARSE,STATE stateStyle;
     class AGENT_SEC,AGENT_QA agentStyle;
     class AGENT_ARCH synthStyle;
-
-**##LangSmith Observability**
-<img width="862" height="908" alt="Screenshot 2026-10-14 143152" src="https://github.com/user-attachments/assets/d558490c-acb3-4044-b4d1-bbf4b5ce4860" />
-
