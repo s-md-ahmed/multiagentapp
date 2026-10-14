@@ -55,3 +55,7 @@ graph TD
     class INGEST,PARSE,STATE stateStyle;
     class AGENT_SEC,AGENT_QA agentStyle;
     class AGENT_ARCH synthStyle;
+
+**##LangSmith Observability**
+<img width="862" height="908" alt="Screenshot 2026-10-14 143152" src="https://github.com/user-attachments/assets/d558490c-acb3-4044-b4d1-bbf4b5ce4860" />
+
