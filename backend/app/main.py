@@ -58,10 +58,10 @@ async def trigger_error():
 
 class RepoRequest(BaseModel):
     repo_url: str
-    groq_api_key: Optional[SecretStr] = None  # Protected from leaking into LangSmith traces
+    groq_api_key: Optional[SecretStr] = None
 
-def background_evaluation_job(run_id: str, code_context: str, review_text: str):
-    """Executes post-response evaluations with a brief delay to allow LangSmith run indexing."""
+def background_evaluation_job(run_id: str, code_context: str, review_text: str, api_key: str):
+    """Executes post-response evaluations with a brief delay and passes the active API key."""
     if not run_id:
         return
     
@@ -78,7 +78,7 @@ def background_evaluation_job(run_id: str, code_context: str, review_text: str):
         print(f"--- [EVAL SUCCESS] Logged structural_compliance: {structural_score} for run {run_id} ---")
         
         # 2. LLM Quality Judge Check
-        quality_score = run_llm_judge_eval(code_context, review_text)
+        quality_score = run_llm_judge_eval(code_context, review_text, api_key)
         if quality_score is not None:
             ls_client.create_feedback(
                 run_id=run_id,
@@ -128,7 +128,8 @@ def analyze_repo(request: RepoRequest, background_tasks: BackgroundTasks):
                 background_evaluation_job,
                 run_id=active_run_id,
                 code_context=assembled_code_context,
-                review_text=analysis_result
+                review_text=analysis_result,
+                api_key=active_api_key
             )
         
         return {"markdown": analysis_result}
