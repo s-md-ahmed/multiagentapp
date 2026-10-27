@@ -1,6 +1,7 @@
 # main.py
 import os
 import sys
+import time
 import traceback
 from pathlib import Path
 from typing import Optional
@@ -67,9 +68,13 @@ class RepoRequest(BaseModel):
     groq_api_key: Optional[str] = None
 
 def background_evaluation_job(run_id: str, code_context: str, review_text: str):
-    """Executes post-response evaluations asynchronously with strict metric integrity."""
+    """Executes post-response evaluations with a brief delay to allow LangSmith run indexing."""
     if not run_id:
         return
+    
+    # Wait 3 seconds for LangSmith to commit the trace ID
+    time.sleep(3)
+    
     try:
         # 1. Structural Pass/Fail Check
         structural_score = run_structural_eval(review_text)
@@ -78,6 +83,7 @@ def background_evaluation_job(run_id: str, code_context: str, review_text: str):
             key="structural_compliance",
             score=structural_score
         )
+        print(f"--- [EVAL SUCCESS] Logged structural_compliance: {structural_score} for run {run_id} ---")
         
         # 2. LLM Quality Judge Check
         quality_score = run_llm_judge_eval(code_context, review_text)
@@ -87,6 +93,7 @@ def background_evaluation_job(run_id: str, code_context: str, review_text: str):
                 key="llm_quality_judge",
                 score=quality_score
             )
+            print(f"--- [EVAL SUCCESS] Logged llm_quality_judge: {quality_score} for run {run_id} ---")
         else:
             print(f"--- [INFO] Skipping 'llm_quality_judge' feedback for run {run_id} due to evaluation failure. ---")
             
