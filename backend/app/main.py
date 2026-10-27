@@ -14,9 +14,9 @@ import sentry_sdk
 from langsmith import Client
 from langsmith.run_helpers import get_current_run_tree
 
-# Use absolute imports to prevent ImportError crashes
-from evaluators import run_structural_eval, run_llm_judge_eval
-from agent_crew import app_graph
+# Use proper relative imports matching your folder layout
+from .evaluators import run_structural_eval, run_llm_judge_eval
+from .agent_crew import app_graph
 
 # 1. Initialize Sentry (Infra & Backend Ops Observability)
 sentry_sdk.init(
@@ -67,7 +67,7 @@ class RepoRequest(BaseModel):
     groq_api_key: Optional[str] = None
 
 def background_evaluation_job(run_id: str, code_context: str, review_text: str):
-    """Executes post-response evaluations asynchronously with strict isolation."""
+    """Executes post-response evaluations asynchronously with strict metric integrity."""
     if not run_id:
         return
     try:
@@ -87,12 +87,15 @@ def background_evaluation_job(run_id: str, code_context: str, review_text: str):
                 key="llm_quality_judge",
                 score=quality_score
             )
+        else:
+            print(f"--- [INFO] Skipping 'llm_quality_judge' feedback for run {run_id} due to evaluation failure. ---")
+            
     except Exception as e:
         print(f"--- [EVAL ERROR] Background evaluation job crashed: {e} ---")
 
 @app.post("/analyze")
 def analyze_repo(request: RepoRequest, background_tasks: BackgroundTasks):
-    """Core production endpoint guaranteed to return JSON."""
+    """Core production endpoint. Executes multi-agent review, auto-streams traces, and triggers async evals."""
     try:
         print(f"--- [DEBUG] Received request for repo: {request.repo_url} ---")
         
@@ -113,7 +116,7 @@ def analyze_repo(request: RepoRequest, background_tasks: BackgroundTasks):
         analysis_result = final_state["final_review"]
         assembled_code_context = final_state["assembled_context"]
         
-        # Safely extract active LangSmith run ID
+        # Extract active LangSmith run ID safely from tracing context
         try:
             current_run_tree = get_current_run_tree()
             active_run_id = str(current_run_tree.id) if current_run_tree else None
