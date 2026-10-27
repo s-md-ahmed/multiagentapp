@@ -9,29 +9,24 @@ from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 
 import sentry_sdk
 from langsmith import Client, traceable
 from langsmith.run_helpers import get_current_run_tree
 
-# Use proper relative imports matching your folder layout
 from .evaluators import run_structural_eval, run_llm_judge_eval
 from .agent_crew import app_graph
 
-# 1. Initialize Sentry (Infra & Backend Ops Observability)
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
     send_default_pii=False,
     traces_sample_rate=1.0,
 )
 
-# 2. Configure LangSmith (Agentic Ops Observability)
 if os.getenv("LANGCHAIN_API_KEY"):
     os.environ["LANGCHAIN_TRACING_V2"] = "true"
     os.environ.setdefault("LANGCHAIN_PROJECT", "multi-agent-code-reviewer")
-
-# ----------------------------------
 
 app = FastAPI()
 ls_client = Client()
@@ -44,11 +39,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Resolve path to the frontend folder at the root level
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 
-# Mount static assets
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
@@ -65,14 +58,13 @@ async def trigger_error():
 
 class RepoRequest(BaseModel):
     repo_url: str
-    groq_api_key: Optional[str] = None
+    groq_api_key: Optional[SecretStr] = None  # Protected from leaking into LangSmith traces
 
 def background_evaluation_job(run_id: str, code_context: str, review_text: str):
     """Executes post-response evaluations with a brief delay to allow LangSmith run indexing."""
     if not run_id:
         return
     
-    # Wait 3 seconds for LangSmith to commit the trace ID
     time.sleep(3)
     
     try:
@@ -107,7 +99,8 @@ def analyze_repo(request: RepoRequest, background_tasks: BackgroundTasks):
     try:
         print(f"--- [DEBUG] Received request for repo: {request.repo_url} ---")
         
-        active_api_key = request.groq_api_key or os.getenv("GROQ_API_KEY")
+        raw_user_key = request.groq_api_key.get_secret_value() if request.groq_api_key else None
+        active_api_key = raw_user_key or os.getenv("GROQ_API_KEY")
         if not active_api_key:
             raise HTTPException(status_code=400, detail="No Groq API key provided and server default is not set.")
 
@@ -124,7 +117,6 @@ def analyze_repo(request: RepoRequest, background_tasks: BackgroundTasks):
         analysis_result = final_state["final_review"]
         assembled_code_context = final_state["assembled_context"]
         
-        # Extract active LangSmith run ID safely from tracing context
         try:
             current_run_tree = get_current_run_tree()
             active_run_id = str(current_run_tree.id) if current_run_tree else None
