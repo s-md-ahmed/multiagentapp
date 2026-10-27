@@ -13,7 +13,10 @@ from pydantic import BaseModel
 import sentry_sdk
 from langsmith import Client
 from langsmith.run_helpers import get_current_run_tree
-from .evaluators import run_structural_eval, run_llm_judge_eval
+
+# Use absolute imports to prevent ImportError crashes
+from evaluators import run_structural_eval, run_llm_judge_eval
+from agent_crew import app_graph
 
 # 1. Initialize Sentry (Infra & Backend Ops Observability)
 sentry_sdk.init(
@@ -34,7 +37,7 @@ ls_client = Client()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://multiagentapp-7zwv.onrender.com"],
+    allow_origins=["https://multiagentapp-7zwv.onrender.com", "http://localhost:8000", "http://127.0.0.1:8000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -45,7 +48,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 
 # Mount static assets
-app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+if FRONTEND_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 @app.get("/")
 def serve_frontend():
@@ -63,7 +67,7 @@ class RepoRequest(BaseModel):
     groq_api_key: Optional[str] = None
 
 def background_evaluation_job(run_id: str, code_context: str, review_text: str):
-    """Executes post-response evaluations asynchronously. Skips logging if evaluation fails to protect metrics purity."""
+    """Executes post-response evaluations asynchronously with strict isolation."""
     if not run_id:
         return
     try:
@@ -75,7 +79,7 @@ def background_evaluation_job(run_id: str, code_context: str, review_text: str):
             score=structural_score
         )
         
-        # 2. LLM Quality Judge Check (Only log if evaluation succeeded cleanly with no fallback/fake scores)
+        # 2. LLM Quality Judge Check
         quality_score = run_llm_judge_eval(code_context, review_text)
         if quality_score is not None:
             ls_client.create_feedback(
@@ -83,25 +87,19 @@ def background_evaluation_job(run_id: str, code_context: str, review_text: str):
                 key="llm_quality_judge",
                 score=quality_score
             )
-        else:
-            print(f"--- [INFO] Skipping 'llm_quality_judge' feedback for run {run_id} due to evaluation failure. ---")
-            
     except Exception as e:
         print(f"--- [EVAL ERROR] Background evaluation job crashed: {e} ---")
 
 @app.post("/analyze")
 def analyze_repo(request: RepoRequest, background_tasks: BackgroundTasks):
-    """Core production endpoint. Executes multi-agent review, auto-streams traces, and triggers async evals."""
+    """Core production endpoint guaranteed to return JSON."""
     try:
         print(f"--- [DEBUG] Received request for repo: {request.repo_url} ---")
         
         active_api_key = request.groq_api_key or os.getenv("GROQ_API_KEY")
-        
         if not active_api_key:
             raise HTTPException(status_code=400, detail="No Groq API key provided and server default is not set.")
 
-        from .agent_crew import app_graph
-        
         initial_state = {
             "repo_url": request.repo_url,
             "api_key": active_api_key,
@@ -115,9 +113,12 @@ def analyze_repo(request: RepoRequest, background_tasks: BackgroundTasks):
         analysis_result = final_state["final_review"]
         assembled_code_context = final_state["assembled_context"]
         
-        # Extract active LangSmith run ID safely from tracing context
-        current_run_tree = get_current_run_tree()
-        active_run_id = str(current_run_tree.id) if current_run_tree else None
+        # Safely extract active LangSmith run ID
+        try:
+            current_run_tree = get_current_run_tree()
+            active_run_id = str(current_run_tree.id) if current_run_tree else None
+        except Exception:
+            active_run_id = None
         
         if active_run_id:
             background_tasks.add_task(
@@ -133,13 +134,11 @@ def analyze_repo(request: RepoRequest, background_tasks: BackgroundTasks):
         raise he
     except Exception as e:
         err_str = str(e)
-        
         if "git" in err_str.lower() or "clone" in err_str.lower() or "exit code" in err_str.lower():
             raise HTTPException(
                 status_code=400, 
                 detail="Could not clone repository. Please check that the URL is correct and the repository is public."
             )
-
         if "Please reduce the length" in err_str or "rate_limit_exceeded" in err_str or "413" in err_str:
             raise HTTPException(
                 status_code=400, 
@@ -149,4 +148,4 @@ def analyze_repo(request: RepoRequest, background_tasks: BackgroundTasks):
         err_type, err_value, err_tb = sys.exc_info()
         formatted_tb = "".join(traceback.format_exception(err_type, err_value, err_tb))
         print("CRASH TRACEBACK:\n", formatted_tb)
-        raise HTTPException(status_code=500, detail=str(err_value) + " | Check terminal for full traceback.")
+        raise HTTPException(status_code=500, detail=str(err_value))
