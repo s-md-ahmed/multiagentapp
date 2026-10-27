@@ -19,15 +19,14 @@ def run_structural_eval(review_markdown: str) -> float:
     
     return 1.0 if (headers_pass and has_tables) else 0.0
 
-def run_llm_judge_eval(code_context: str, review_text: str) -> Optional[int]:
-    """LLM-as-a-Judge: Evaluates quality securely using the server's dedicated evaluation key."""
-    server_api_key = os.getenv("GROQ_API_KEY")
-    if not server_api_key:
-        print("--- [EVAL ERROR] Server GROQ_API_KEY is missing. Skipping LLM judge. ---")
+def run_llm_judge_eval(code_context: str, review_text: str, api_key: str) -> Optional[int]:
+    """LLM-as-a-Judge: Evaluates quality securely using the active request API key."""
+    if not api_key:
+        print("--- [EVAL ERROR] API key is missing for LLM judge. ---")
         return None
 
     llm = ChatGroq(
-        api_key=server_api_key,
+        api_key=api_key,
         model_name="openai/gpt-oss-20b",
         temperature=0.0,
         max_tokens=10
