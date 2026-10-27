@@ -20,10 +20,11 @@ def run_structural_eval(review_markdown: str) -> float:
     return 1.0 if (headers_pass and has_tables) else 0.0
 
 def run_llm_judge_eval(code_context: str, review_text: str) -> Optional[int]:
-    """Temporary debug version: Exposes any underlying execution crash directly."""
+    """LLM-as-a-Judge: Evaluates quality securely using the server's dedicated evaluation key."""
     server_api_key = os.getenv("GROQ_API_KEY")
     if not server_api_key:
-        raise ValueError("Server GROQ_API_KEY is missing.")
+        print("--- [EVAL ERROR] Server GROQ_API_KEY is missing. Skipping LLM judge. ---")
+        return None
 
     llm = ChatGroq(
         api_key=server_api_key,
@@ -51,12 +52,17 @@ def run_llm_judge_eval(code_context: str, review_text: str) -> Optional[int]:
     Output format: Return ONLY a single integer score from 1 to 5. Do not include markdown or extra text.
     """
     
-    # Let it raise errors directly without catching them silently
-    response = llm.invoke([("user", prompt)])
-    raw_content = response.content.strip()
-    
-    match = re.search(r'\b([1-5])\b', raw_content)
-    if match:
-        return int(match.group(1))
-    
-    raise ValueError(f"Could not parse integer from LLM response: '{raw_content}'")
+    try:
+        response = llm.invoke([("user", prompt)])
+        raw_content = response.content.strip()
+        
+        match = re.search(r'\b([1-5])\b', raw_content)
+        if match:
+            return int(match.group(1))
+            
+        print(f"--- [EVAL WARNING] LLM judge returned unparseable content: '{raw_content}' ---")
+        return None
+        
+    except Exception as e:
+        print(f"--- [EVAL ERROR] LLM judge execution failed: {e} ---")
+        return None
