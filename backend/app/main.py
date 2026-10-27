@@ -11,7 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 import sentry_sdk
-from langsmith import Client, run_trees
+from langsmith import Client
+from langsmith.run_helpers import get_current_run_tree
 from .evaluators import run_structural_eval, run_llm_judge_eval
 
 # 1. Initialize Sentry (Infra & Backend Ops Observability)
@@ -115,7 +116,7 @@ def analyze_repo(request: RepoRequest, background_tasks: BackgroundTasks):
         assembled_code_context = final_state["assembled_context"]
         
         # Extract active LangSmith run ID safely from tracing context
-        current_run_tree = run_trees.get_current_run_tree()
+        current_run_tree = get_current_run_tree()
         active_run_id = str(current_run_tree.id) if current_run_tree else None
         
         if active_run_id:
