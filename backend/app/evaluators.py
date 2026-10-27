@@ -20,11 +20,10 @@ def run_structural_eval(review_markdown: str) -> float:
     return 1.0 if (headers_pass and has_tables) else 0.0
 
 def run_llm_judge_eval(code_context: str, review_text: str) -> Optional[int]:
-    """LLM-as-a-Judge: Evaluates quality securely. Returns None on failure instead of injecting fake metrics."""
+    """Temporary debug version: Exposes any underlying execution crash directly."""
     server_api_key = os.getenv("GROQ_API_KEY")
     if not server_api_key:
-        print("--- [EVAL ERROR] Server GROQ_API_KEY is missing. Skipping LLM judge. ---")
-        return None
+        raise ValueError("Server GROQ_API_KEY is missing.")
 
     llm = ChatGroq(
         api_key=server_api_key,
@@ -33,7 +32,6 @@ def run_llm_judge_eval(code_context: str, review_text: str) -> Optional[int]:
         max_tokens=10
     )
     
-    # Sanitize and truncate inputs to prevent f-string KeyError crashes on code curly braces
     safe_context = (code_context[:12000] if code_context else "No context provided.").replace("{", "{{").replace("}", "}}")
     safe_review = (review_text if review_text else "").replace("{", "{{").replace("}", "}}")
     
@@ -53,18 +51,12 @@ def run_llm_judge_eval(code_context: str, review_text: str) -> Optional[int]:
     Output format: Return ONLY a single integer score from 1 to 5. Do not include markdown or extra text.
     """
     
-    try:
-        response = llm.invoke([("user", prompt)])
-        raw_content = response.content.strip()
-        
-        match = re.search(r'\b([1-5])\b', raw_content)
-        if match:
-            score = int(match.group(1))
-            return score
-            
-        print(f"--- [EVAL WARNING] LLM judge returned unparseable content: '{raw_content}' ---")
-        return None
-        
-    except Exception as e:
-        print(f"--- [EVAL ERROR] LLM judge execution or parsing failed: {e} ---")
-        return None
+    # Let it raise errors directly without catching them silently
+    response = llm.invoke([("user", prompt)])
+    raw_content = response.content.strip()
+    
+    match = re.search(r'\b([1-5])\b', raw_content)
+    if match:
+        return int(match.group(1))
+    
+    raise ValueError(f"Could not parse integer from LLM response: '{raw_content}'")
