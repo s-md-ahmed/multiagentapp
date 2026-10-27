@@ -60,40 +60,8 @@ class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[SecretStr] = None
 
-def background_evaluation_job(run_id: str, code_context: str, review_text: str, api_key: str):
-    """Executes post-response evaluations with a brief delay and passes the active API key."""
-    if not run_id:
-        return
-    
-    time.sleep(3)
-    
-    try:
-        # 1. Structural Pass/Fail Check
-        structural_score = run_structural_eval(review_text)
-        ls_client.create_feedback(
-            run_id=run_id,
-            key="structural_compliance",
-            score=structural_score
-        )
-        print(f"--- [EVAL SUCCESS] Logged structural_compliance: {structural_score} for run {run_id} ---")
-        
-        # 2. LLM Quality Judge Check
-        quality_score = run_llm_judge_eval(code_context, review_text, api_key)
-        if quality_score is not None:
-            ls_client.create_feedback(
-                run_id=run_id,
-                key="llm_quality_judge",
-                score=quality_score
-            )
-            print(f"--- [EVAL SUCCESS] Logged llm_quality_judge: {quality_score} for run {run_id} ---")
-        else:
-            print(f"--- [INFO] Skipping 'llm_quality_judge' feedback for run {run_id} due to evaluation failure. ---")
-            
-    except Exception as e:
-        print(f"--- [EVAL ERROR] Background evaluation job crashed: {e} ---")
 
 @app.post("/analyze")
-@traceable(name="analyze_repo_endpoint")
 def analyze_repo(request: RepoRequest, background_tasks: BackgroundTasks):
     """Core production endpoint. Executes multi-agent review, auto-streams traces, and triggers async evals."""
     try:
