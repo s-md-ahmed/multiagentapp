@@ -1,5 +1,6 @@
 # evaluators.py
 import os
+from typing import Optional
 from langchain_groq import ChatGroq
 
 def run_structural_eval(review_markdown: str) -> float:
@@ -17,11 +18,12 @@ def run_structural_eval(review_markdown: str) -> float:
     
     return 1.0 if (headers_pass and has_tables) else 0.0
 
-def run_llm_judge_eval(code_context: str, review_text: str) -> int:
-    """LLM-as-a-Judge: Uses server-side backend key to evaluate quality securely without leaking user keys."""
+def run_llm_judge_eval(code_context: str, review_text: str) -> Optional[int]:
+    """LLM-as-a-Judge: Evaluates quality securely. Returns None on failure instead of injecting fake metrics."""
     server_api_key = os.getenv("GROQ_API_KEY")
     if not server_api_key:
-        return 3  # Fallback score if server key is absent
+        print("--- [EVAL ERROR] Server GROQ_API_KEY is missing. Skipping LLM judge. ---")
+        return None
 
     llm = ChatGroq(
         api_key=server_api_key,
@@ -48,6 +50,12 @@ def run_llm_judge_eval(code_context: str, review_text: str) -> int:
     
     try:
         response = llm.invoke([("user", prompt)])
-        return int(response.content.strip())
-    except Exception:
-        return 3  # Fallback median score if parsing fails
+        cleaned_score = response.content.strip()
+        score = int(cleaned_score)
+        if 1 <= score <= 5:
+            return score
+        print(f"--- [EVAL WARNING] LLM judge returned out-of-range score: {cleaned_score} ---")
+        return None
+    except Exception as e:
+        print(f"--- [EVAL ERROR] LLM judge execution or parsing failed: {e} ---")
+        return None  # Return None so we never log corrupt or fake data
