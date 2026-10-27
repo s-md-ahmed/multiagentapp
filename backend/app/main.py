@@ -1,15 +1,18 @@
+# main.py
 import os
 import sys
 import traceback
 from pathlib import Path
 from typing import Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 import sentry_sdk
+from langsmith import Client, run_trees
+from .evaluators import run_structural_eval, run_llm_judge_eval
 
 # 1. Initialize Sentry (Infra & Backend Ops Observability)
 sentry_sdk.init(
@@ -26,6 +29,7 @@ if os.getenv("LANGCHAIN_API_KEY"):
 # ----------------------------------
 
 app = FastAPI()
+ls_client = Client()
 
 app.add_middleware(
     CORSMiddleware,
@@ -57,9 +61,32 @@ class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[str] = None
 
+def background_evaluation_job(run_id: str, code_context: str, review_text: str):
+    """Executes post-response evaluations asynchronously in the background using server-side keys."""
+    if not run_id:
+        return
+    try:
+        # 1. Structural Pass/Fail Check
+        structural_score = run_structural_eval(review_text)
+        ls_client.create_feedback(
+            run_id=run_id,
+            key="structural_compliance",
+            score=structural_score
+        )
+        
+        # 2. LLM Quality Judge Check (securely isolated using server environment key)
+        quality_score = run_llm_judge_eval(code_context, review_text)
+        ls_client.create_feedback(
+            run_id=run_id,
+            key="llm_quality_judge",
+            score=quality_score
+        )
+    except Exception as e:
+        print(f"--- [EVAL ERROR] Background evaluation failed: {e} ---")
+
 @app.post("/analyze")
-def analyze_repo(request: RepoRequest):
-    """Core production endpoint. Executes multi-agent review and auto-streams traces to LangSmith."""
+def analyze_repo(request: RepoRequest, background_tasks: BackgroundTasks):
+    """Core production endpoint. Executes multi-agent review, auto-streams traces, and triggers async evals."""
     try:
         print(f"--- [DEBUG] Received request for repo: {request.repo_url} ---")
         
@@ -68,12 +95,32 @@ def analyze_repo(request: RepoRequest):
         if not active_api_key:
             raise HTTPException(status_code=400, detail="No Groq API key provided and server default is not set.")
 
-        from .agent_crew import analyze_codebase
+        from .agent_crew import app_graph
         
-        analysis_result = analyze_codebase(
-            request.repo_url, 
-            api_key=active_api_key
-        )
+        initial_state = {
+            "repo_url": request.repo_url,
+            "api_key": active_api_key,
+            "assembled_context": "",
+            "security_findings": "",
+            "bug_findings": "",
+            "final_review": ""
+        }
+        
+        final_state = app_graph.invoke(initial_state)
+        analysis_result = final_state["final_review"]
+        assembled_code_context = final_state["assembled_context"]
+        
+        # Extract active LangSmith run ID safely from tracing context
+        current_run_tree = run_trees.get_current_run_tree()
+        active_run_id = str(current_run_tree.id) if current_run_tree else None
+        
+        if active_run_id:
+            background_tasks.add_task(
+                background_evaluation_job,
+                run_id=active_run_id,
+                code_context=assembled_code_context,
+                review_text=analysis_result
+            )
         
         return {"markdown": analysis_result}
         
