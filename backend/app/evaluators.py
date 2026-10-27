@@ -29,7 +29,6 @@ def run_llm_judge_eval(code_context: str, review_text: str, api_key: str) -> Opt
         api_key=api_key,
         model_name="openai/gpt-oss-20b",
         temperature=0.0,
-        max_tokens=10
     )
     
     safe_context = (code_context[:12000] if code_context else "No context provided.").replace("{", "{{").replace("}", "}}")
