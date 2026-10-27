@@ -33,17 +33,18 @@ def run_llm_judge_eval(code_context: str, review_text: str) -> Optional[int]:
         max_tokens=10
     )
     
-    # Truncate code context if excessively large to prevent token window overflow
-    truncated_context = code_context[:12000] if code_context else "No context provided."
+    # Sanitize and truncate inputs to prevent f-string KeyError crashes on code curly braces
+    safe_context = (code_context[:12000] if code_context else "No context provided.").replace("{", "{{").replace("}", "}}")
+    safe_review = (review_text if review_text else "").replace("{", "{{").replace("}", "}}")
     
     prompt = f"""
     You are a strict code review auditor. Evaluate the following AI-generated code review based on the provided repository context.
     
     Repository Context:
-    {truncated_context}
+    {safe_context}
     
     AI Code Review to Judge:
-    {review_text}
+    {safe_review}
     
     Task: Rate the actionability and factual grounding of the review on a scale of 1 to 5.
     - 5: Clear, actionable findings mapped directly to the code.
@@ -56,7 +57,6 @@ def run_llm_judge_eval(code_context: str, review_text: str) -> Optional[int]:
         response = llm.invoke([("user", prompt)])
         raw_content = response.content.strip()
         
-        # Robustly extract the first integer found in the response (handles markdown like **5** or extra text)
         match = re.search(r'\b([1-5])\b', raw_content)
         if match:
             score = int(match.group(1))
