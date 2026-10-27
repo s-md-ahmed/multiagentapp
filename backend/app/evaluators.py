@@ -28,7 +28,7 @@ def run_llm_judge_eval(code_context: str, review_text: str) -> Optional[int]:
     llm = ChatGroq(
         api_key=server_api_key,
         model_name="openai/gpt-oss-20b",
-        temperature=0.0,  # Zero temperature for rigorous consistency
+        temperature=0.0,
         max_tokens=10
     )
     
@@ -58,4 +58,4 @@ def run_llm_judge_eval(code_context: str, review_text: str) -> Optional[int]:
         return None
     except Exception as e:
         print(f"--- [EVAL ERROR] LLM judge execution or parsing failed: {e} ---")
-        return None  # Return None so we never log corrupt or fake data
+        return None
