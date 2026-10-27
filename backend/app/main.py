@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 import sentry_sdk
-from langsmith import Client
+from langsmith import Client, traceable
 from langsmith.run_helpers import get_current_run_tree
 
 # Use proper relative imports matching your folder layout
@@ -94,6 +94,7 @@ def background_evaluation_job(run_id: str, code_context: str, review_text: str):
         print(f"--- [EVAL ERROR] Background evaluation job crashed: {e} ---")
 
 @app.post("/analyze")
+@traceable(name="analyze_repo_endpoint")
 def analyze_repo(request: RepoRequest, background_tasks: BackgroundTasks):
     """Core production endpoint. Executes multi-agent review, auto-streams traces, and triggers async evals."""
     try:
