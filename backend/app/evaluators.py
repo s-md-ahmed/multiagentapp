@@ -1,5 +1,6 @@
 # evaluators.py
 import os
+import re
 from typing import Optional
 from langchain_groq import ChatGroq
 
@@ -32,11 +33,14 @@ def run_llm_judge_eval(code_context: str, review_text: str) -> Optional[int]:
         max_tokens=10
     )
     
+    # Truncate code context if excessively large to prevent token window overflow
+    truncated_context = code_context[:12000] if code_context else "No context provided."
+    
     prompt = f"""
     You are a strict code review auditor. Evaluate the following AI-generated code review based on the provided repository context.
     
     Repository Context:
-    {code_context}
+    {truncated_context}
     
     AI Code Review to Judge:
     {review_text}
@@ -45,17 +49,22 @@ def run_llm_judge_eval(code_context: str, review_text: str) -> Optional[int]:
     - 5: Clear, actionable findings mapped directly to the code.
     - 1: Vague, generic filler text with unverified references.
     
-    Output format: Return ONLY a single integer score (1-5). Do not include any other text.
+    Output format: Return ONLY a single integer score from 1 to 5. Do not include markdown or extra text.
     """
     
     try:
         response = llm.invoke([("user", prompt)])
-        cleaned_score = response.content.strip()
-        score = int(cleaned_score)
-        if 1 <= score <= 5:
+        raw_content = response.content.strip()
+        
+        # Robustly extract the first integer found in the response (handles markdown like **5** or extra text)
+        match = re.search(r'\b([1-5])\b', raw_content)
+        if match:
+            score = int(match.group(1))
             return score
-        print(f"--- [EVAL WARNING] LLM judge returned out-of-range score: {cleaned_score} ---")
+            
+        print(f"--- [EVAL WARNING] LLM judge returned unparseable content: '{raw_content}' ---")
         return None
+        
     except Exception as e:
         print(f"--- [EVAL ERROR] LLM judge execution or parsing failed: {e} ---")
         return None
