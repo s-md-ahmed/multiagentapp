@@ -62,7 +62,7 @@ class RepoRequest(BaseModel):
     groq_api_key: Optional[str] = None
 
 def background_evaluation_job(run_id: str, code_context: str, review_text: str):
-    """Executes post-response evaluations asynchronously in the background using server-side keys."""
+    """Executes post-response evaluations asynchronously. Skips logging if evaluation fails to protect metrics purity."""
     if not run_id:
         return
     try:
@@ -74,15 +74,19 @@ def background_evaluation_job(run_id: str, code_context: str, review_text: str):
             score=structural_score
         )
         
-        # 2. LLM Quality Judge Check (securely isolated using server environment key)
+        # 2. LLM Quality Judge Check (Only log if evaluation succeeded cleanly with no fallback/fake scores)
         quality_score = run_llm_judge_eval(code_context, review_text)
-        ls_client.create_feedback(
-            run_id=run_id,
-            key="llm_quality_judge",
-            score=quality_score
-        )
+        if quality_score is not None:
+            ls_client.create_feedback(
+                run_id=run_id,
+                key="llm_quality_judge",
+                score=quality_score
+            )
+        else:
+            print(f"--- [INFO] Skipping 'llm_quality_judge' feedback for run {run_id} due to evaluation failure. ---")
+            
     except Exception as e:
-        print(f"--- [EVAL ERROR] Background evaluation failed: {e} ---")
+        print(f"--- [EVAL ERROR] Background evaluation job crashed: {e} ---")
 
 @app.post("/analyze")
 def analyze_repo(request: RepoRequest, background_tasks: BackgroundTasks):
