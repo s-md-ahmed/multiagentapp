@@ -1,20 +1,17 @@
 # main.py
 import os
 import sys
-import time
 import traceback
 from pathlib import Path
 from typing import Optional
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, SecretStr
 import re
 import markdown
 from langchain_groq import ChatGroq
-import sentry_sdk
-
 import sentry_sdk
 
 sentry_sdk.init(
@@ -47,7 +44,6 @@ if FRONTEND_DIR.exists():
 def serve_frontend():
     index_file = FRONTEND_DIR / "index.html"
     if index_file.exists():
-        from fastapi.responses import FileResponse
         return FileResponse(str(index_file))
     return {"error": "index.html not found in frontend directory"}
 
@@ -59,9 +55,7 @@ class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[SecretStr] = None
 
-
 from .agent_crew import app_graph
-
 
 def evaluate_review_quality(code_context: str, review_text: str, api_key: str) -> dict:
     """Deterministic structural check + robust LLM quality judge using single-prompt structure."""
@@ -106,7 +100,6 @@ Output format: Return ONLY a single integer score from 1 to 5."""
         "structural_compliance": structural_score,
         "llm_quality_judge": llm_score
     }
-
 
 @app.post("/analyze", response_class=HTMLResponse)
 def analyze_repo(request: RepoRequest):
