@@ -10,7 +10,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, SecretStr
-
+import re
+from langchain_groq import ChatGroq
 import sentry_sdk
 from langsmith import Client, traceable
 from langsmith.run_helpers import get_current_run_tree
