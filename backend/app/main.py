@@ -59,7 +59,48 @@ async def trigger_error():
 class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[SecretStr] = None
+import re
+from langchain_groq import ChatGroq
 
+def evaluate_review_quality(code_context: str, review_text: str, api_key: str) -> dict:
+    """Deterministic structural check + robust LLM quality judge."""
+    # 1. Deterministic Structural Compliance Check
+    has_headers = bool(re.search(r'^#{1,3}\s+', review_text, re.MULTILINE))
+    has_tables = "|" in review_text
+    structural_score = 1.0 if (has_headers or has_tables) else 0.0
+
+    # 2. In-App LLM Judge Execution
+    llm_score = None
+    if api_key:
+        try:
+            eval_llm = ChatGroq(
+                api_key=api_key,
+                model_name="openai/gpt-oss-20b",
+                temperature=0.1
+            )
+            
+            messages = [
+                (
+                    "system",
+                    "You are a strict code review auditor. Rate the actionability and factual grounding of the given AI code review on a scale of 1 to 5. Output ONLY the integer digit (1-5)."
+                ),
+                (
+                    "user",
+                    f"Repository Context:\n{code_context[:6000]}\n\nAI Code Review:\n{review_text[:4000]}\n\nScore (1-5):"
+                )
+            ]
+            
+            res = eval_llm.invoke(messages)
+            match = re.search(r'\b([1-5])\b', res.content.strip() if res and res.content else "")
+            if match:
+                llm_score = int(match.group(1))
+        except Exception as e:
+            print(f"--- [EVAL ERROR] Inline LLM Judge failed: {e} ---")
+
+    return {
+        "structural_compliance": structural_score,
+        "llm_quality_judge": llm_score
+    }
 
 @app.post("/analyze")
 def analyze_repo(request: RepoRequest):
