@@ -59,11 +59,8 @@ async def trigger_error():
 class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[SecretStr] = None
-import re
-from langchain_groq import ChatGroq
-
 def evaluate_review_quality(code_context: str, review_text: str, api_key: str) -> dict:
-    """Deterministic structural check + robust LLM quality judge."""
+    """Deterministic structural check + robust LLM quality judge using single-prompt structure."""
     # 1. Deterministic Structural Compliance Check
     has_headers = bool(re.search(r'^#{1,3}\s+', review_text, re.MULTILINE))
     has_tables = "|" in review_text
@@ -79,19 +76,27 @@ def evaluate_review_quality(code_context: str, review_text: str, api_key: str) -
                 temperature=0.1
             )
             
-            messages = [
-                (
-                    "system",
-                    "You are a strict code review auditor. Rate the actionability and factual grounding of the given AI code review on a scale of 1 to 5. Output ONLY the integer digit (1-5)."
-                ),
-                (
-                    "user",
-                    f"Repository Context:\n{code_context[:6000]}\n\nAI Code Review:\n{review_text[:4000]}\n\nScore (1-5):"
-                )
-            ]
+            # Unified prompt string matching your working agent style
+            prompt = f"""You are a strict code review auditor. Evaluate the following AI-generated code review based on the repository context.
             
-            res = eval_llm.invoke(messages)
-            match = re.search(r'\b([1-5])\b', res.content.strip() if res and res.content else "")
+Repository Context:
+{code_context[:5000]}
+
+AI Code Review:
+{review_text[:3000]}
+
+Task: Rate the actionability and factual grounding on a scale of 1 to 5.
+- 5: Clear, actionable findings mapped directly to code.
+- 1: Vague, generic filler text.
+
+Output format: Return ONLY a single integer score from 1 to 5."""
+
+            res = eval_llm.invoke([("user", prompt)])
+            raw_content = res.content.strip() if res and res.content else ""
+            print(f"--- [DEBUG] Raw LLM Judge Output: '{raw_content}' ---")
+            
+            # Flexible regex to catch the number anywhere in the output
+            match = re.search(r'([1-5])', raw_content)
             if match:
                 llm_score = int(match.group(1))
         except Exception as e:
@@ -101,7 +106,6 @@ def evaluate_review_quality(code_context: str, review_text: str, api_key: str) -
         "structural_compliance": structural_score,
         "llm_quality_judge": llm_score
     }
-
 @app.post("/analyze")
 def analyze_repo(request: RepoRequest):
     try:
