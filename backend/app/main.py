@@ -5,12 +5,11 @@ import traceback
 from pathlib import Path
 from typing import Optional
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, SecretStr
 import re
-import markdown
 from langchain_groq import ChatGroq
 import sentry_sdk
 
@@ -58,7 +57,6 @@ class RepoRequest(BaseModel):
 from .agent_crew import app_graph
 
 def evaluate_review_quality(code_context: str, review_text: str, api_key: str) -> dict:
-    """Deterministic structural check + robust LLM quality judge using single-prompt structure."""
     has_headers = bool(re.search(r'^#{1,3}\s+', review_text, re.MULTILINE))
     has_tables = "|" in review_text
     structural_score = 1.0 if (has_headers or has_tables) else 0.0
@@ -81,15 +79,10 @@ AI Code Review:
 {review_text[:3000]}
 
 Task: Rate the actionability and factual grounding on a scale of 1 to 5.
-- 5: Clear, actionable findings mapped directly to code.
-- 1: Vague, generic filler text.
-
 Output format: Return ONLY a single integer score from 1 to 5."""
 
             res = eval_llm.invoke([("user", prompt)])
             raw_content = res.content.strip() if res and res.content else ""
-            print(f"--- [DEBUG] Raw LLM Judge Output: '{raw_content}' ---")
-            
             match = re.search(r'([1-5])', raw_content)
             if match:
                 llm_score = int(match.group(1))
@@ -101,7 +94,7 @@ Output format: Return ONLY a single integer score from 1 to 5."""
         "llm_quality_judge": llm_score
     }
 
-@app.post("/analyze", response_class=HTMLResponse)
+@app.post("/analyze")
 def analyze_repo(request: RepoRequest):
     try:
         raw_user_key = request.groq_api_key.get_secret_value() if request.groq_api_key else None
@@ -118,42 +111,20 @@ def analyze_repo(request: RepoRequest):
             "final_review": ""
         }
         
-        # Execute Multi-Agent Graph
         final_state = app_graph.invoke(initial_state)
         analysis_result = final_state["final_review"]
         assembled_code_context = final_state["assembled_context"]
 
-        # Run Inline Evaluation
         eval_results = evaluate_review_quality(
             code_context=assembled_code_context,
             review_text=analysis_result,
             api_key=active_api_key
         )
 
-        # Convert Markdown to HTML on the backend
-        report_html = markdown.markdown(analysis_result, extensions=['tables', 'fenced_code'])
-        
-        structural_score = eval_results.get("structural_compliance", 0.0)
-        llm_score = eval_results.get("llm_quality_judge")
-        llm_score_display = f"{llm_score}/5" if llm_score else "N/A"
-
-        # Construct the final fully-rendered HTML block including the evaluation badges
-        rendered_html = f"""
-        <div class="evaluation-banner" style="display: flex; gap: 15px; margin-bottom: 20px; padding: 12px 16px; background: #1e293b; color: #f8fafc; border-radius: 8px; font-family: inherit; align-items: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-            <div style="font-weight: 600; font-size: 0.95rem;">Evaluation Metrics:</div>
-            <div style="background: #334155; padding: 4px 10px; border-radius: 4px; font-size: 0.85rem;">
-                Structural Compliance: <strong style="color: #38bdf8;">{structural_score}</strong>
-            </div>
-            <div style="background: #334155; padding: 4px 10px; border-radius: 4px; font-size: 0.85rem;">
-                LLM Quality Judge: <strong style="color: #4ade80;">{llm_score_display}</strong>
-            </div>
-        </div>
-        <div class="markdown-body" style="color: #e2e8f0; line-height: 1.6;">
-            {report_html}
-        </div>
-        """
-
-        return HTMLResponse(content=rendered_html)
+        return JSONResponse(content={
+            "markdown": analysis_result,
+            "evaluations": eval_results
+        })
         
     except HTTPException as he:
         raise he
