@@ -1,4 +1,4 @@
-// script.js
+// app.js
 function initApp() {
     const analyzeBtn = document.getElementById('analyzeBtn');
     if (analyzeBtn) {
@@ -14,7 +14,6 @@ if (document.readyState === 'loading') {
 }
 
 async function startAnalysis() {
-    // 1. Grab and validate the BYOK API key FIRST
     const userApiKeyInput = document.getElementById('groq-api-key');
     const userApiKey = userApiKeyInput ? userApiKeyInput.value.trim() : "";
 
@@ -33,14 +32,12 @@ async function startAnalysis() {
         return;
     }
 
-    // Basic format check for Groq keys
     if (!userApiKey.startsWith("gsk_") || userApiKey.length < 20) {
         errorState.innerText = "Invalid Groq API key format. Groq keys typically start with 'gsk_'.";
         errorState.classList.remove('hidden');
         return;
     }
 
-    // 2. Grab the Repository URL
     const repoUrlInput = document.getElementById('repoUrl');
     const repoUrl = repoUrlInput.value.trim();
 
@@ -55,7 +52,6 @@ async function startAnalysis() {
     loadingState.classList.remove('hidden');
 
     try {
-        // Use relative path to hit whichever domain the app is hosted on
         const response = await fetch('/analyze', {
             method: 'POST',
             headers: {
@@ -68,25 +64,38 @@ async function startAnalysis() {
         });
 
         if (!response.ok) {
-            // If it failed, try reading error JSON or fallback to text
-            let errorDetail = "Failed to analyze repository.";
-            try {
-                const errData = await response.json();
-                errorDetail = errData.detail || errorDetail;
-            } catch (e) {
-                errorDetail = await response.text() || errorDetail;
-            }
-            throw new Error(errorDetail);
+            const errData = await response.json();
+            throw new Error(errData.detail || "Failed to analyze repository.");
         }
 
-        // 3. Directly grab the returned HTML string from the backend response
-        const htmlContent = await response.text();
+        const data = await response.json();
 
-        // Inject the complete HTML (metrics banner + markdown content) into the container
         const markdownOutput = document.getElementById('markdownOutput');
-        markdownOutput.innerHTML = htmlContent;
+        
+        let metricsBanner = document.getElementById('evaluationMetricsBanner');
+        if (!metricsBanner) {
+            metricsBanner = document.createElement('div');
+            metricsBanner.id = 'evaluationMetricsBanner';
+            markdownOutput.parentNode.insertBefore(metricsBanner, markdownOutput);
+        }
 
-        // Reveal the result card cleanly
+        const structuralScore = data.evaluations?.structural_compliance ?? 0.0;
+        const llmScore = data.evaluations?.llm_quality_judge;
+        const llmDisplay = llmScore ? `${llmScore}/5` : 'N/A';
+
+        metricsBanner.style.cssText = "display: flex; gap: 15px; margin-bottom: 20px; padding: 12px 16px; background: #1e293b; color: #f8fafc; border-radius: 8px; align-items: center;";
+        metricsBanner.innerHTML = `
+            <div style="font-weight: 600; font-size: 0.95rem;">📊 Evaluation Metrics:</div>
+            <div style="background: #334155; padding: 4px 10px; border-radius: 4px; font-size: 0.85rem;">
+                Structural Compliance: <strong style="color: #38bdf8;">${structuralScore}</strong>
+            </div>
+            <div style="background: #334155; padding: 4px 10px; border-radius: 4px; font-size: 0.85rem;">
+                LLM Quality Judge: <strong style="color: #4ade80;">${llmDisplay}</strong>
+            </div>
+        `;
+
+        markdownOutput.innerHTML = marked.parse(data.markdown);
+
         resultSection.classList.remove('hidden');
         resultSection.style.display = 'block';
 
