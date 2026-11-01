@@ -1,3 +1,4 @@
+// script.js
 function initApp() {
     const analyzeBtn = document.getElementById('analyzeBtn');
     if (analyzeBtn) {
@@ -54,13 +55,12 @@ async function startAnalysis() {
     loadingState.classList.remove('hidden');
 
     try {
-        // Use relative path so it dynamically hits whichever domain the app is hosted on
+        // Use relative path to hit whichever domain the app is hosted on
         const response = await fetch('/analyze', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            // 3. Send both repo_url and groq_api_key in the JSON payload
             body: JSON.stringify({ 
                 repo_url: repoUrl,
                 groq_api_key: userApiKey 
@@ -68,15 +68,23 @@ async function startAnalysis() {
         });
 
         if (!response.ok) {
-            const errData = await response.json();
-            throw new Error(errData.detail || "Failed to analyze repository.");
+            // If it failed, try reading error JSON or fallback to text
+            let errorDetail = "Failed to analyze repository.";
+            try {
+                const errData = await response.json();
+                errorDetail = errData.detail || errorDetail;
+            } catch (e) {
+                errorDetail = await response.text() || errorDetail;
+            }
+            throw new Error(errorDetail);
         }
 
-        const data = await response.json();
+        // 3. Directly grab the returned HTML string from the backend response
+        const htmlContent = await response.text();
 
-        // Render raw markdown using Marked.js into the designated output container
+        // Inject the complete HTML (metrics banner + markdown content) into the container
         const markdownOutput = document.getElementById('markdownOutput');
-        markdownOutput.innerHTML = marked.parse(data.markdown);
+        markdownOutput.innerHTML = htmlContent;
 
         // Reveal the result card cleanly
         resultSection.classList.remove('hidden');
