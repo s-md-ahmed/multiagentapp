@@ -67,8 +67,7 @@ async def trigger_error():
     except Exception as e:
         if os.getenv("SENTRY_DSN"):
             sentry_sdk.capture_exception(e)
-        return {"status": "success", "message": "Test exception handled."}
-
+        return {"status": "error", "message": "Test exception captured."}
 class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[SecretStr] = None
