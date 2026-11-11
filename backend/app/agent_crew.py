@@ -1,4 +1,4 @@
-# agent_crew.py updates
+# agent_crew.py
 import os
 import tempfile
 from pathlib import Path
@@ -25,7 +25,8 @@ def load_and_parse_node(state: AnalysisState):
     print("--- [GRAPH NODE] Cloning and Parsing Repository ---")
     with tempfile.TemporaryDirectory() as temp_repo_path:
         target_files = clone_repo_to_temp(state["repo_url"], temp_repo_path)
-        parsed_data = parse_repo(target_files)
+        # Pass temp_repo_path explicitly to satisfy the path traversal guard
+        parsed_data = parse_repo(target_files, base_temp_dir=temp_repo_path)
         
         MAX_TOTAL_CHARS = 10000
         assembled_context = ""
@@ -56,7 +57,7 @@ def security_node(state: AnalysisState):
     print("--- [GRAPH NODE] Security Specialist Scanning ---")
     llm = ChatGroq(
         api_key=state["api_key"], 
-        model_name="openai/gpt-oss-20b", 
+        model_name="llama-3.3-70b-versatile",  # Fixed to valid Groq production model
         temperature=0.1,
         max_tokens=3000
     )
@@ -64,7 +65,6 @@ def security_node(state: AnalysisState):
         "You are a cybersecurity expert. Scan the codebase strictly for vulnerabilities, hardcoded secrets, and injection risks. "
         "For every finding, provide a concise, direct 1-sentence explanation for the 'Why'."
     )
-    # Using explicit message objects instead of tuples
     messages = [
         SystemMessage(content=sec_sys),
         HumanMessage(content=f"Here is the repository codebase:\n\n{state['assembled_context']}")
@@ -76,7 +76,7 @@ def bug_hunter_node(state: AnalysisState):
     print("--- [GRAPH NODE] Bug Hunter Scanning Logic ---")
     llm = ChatGroq(
         api_key=state["api_key"], 
-        model_name="openai/gpt-oss-20b", 
+        model_name="llama-3.3-70b-versatile",  # Fixed to valid Groq production model
         temperature=0.1,
         max_tokens=3000
     )
@@ -95,7 +95,7 @@ def architect_node(state: AnalysisState):
     print("--- [GRAPH NODE] Lead Architect Synthesizing Review ---")
     llm = ChatGroq(
         api_key=state["api_key"], 
-        model_name="openai/gpt-oss-20b", 
+        model_name="llama-3.3-70b-versatile",  # Fixed to valid Groq production model
         temperature=0.1,
         max_tokens=6000
     )
@@ -136,23 +136,3 @@ workflow.add_edge("bug_hunter", "architect")
 workflow.add_edge("architect", END)
 
 app_graph = workflow.compile()
-
-def analyze_codebase(repo_url: str, api_key: str = None):
-    active_api_key = api_key or os.getenv("GROQ_API_KEY")
-    if not active_api_key:
-        raise ValueError("No Groq API key provided. Please pass a valid BYOK key.")
-
-    initial_state = {
-        "repo_url": repo_url,
-        "api_key": active_api_key,
-        "assembled_context": "",
-        "security_findings": "",
-        "bug_findings": "",
-        "final_review": ""
-    }
-
-    print("--- [LANGGRAPH] Executing analysis graph workflow ---")
-    final_state = app_graph.invoke(initial_state)
-    print("--- [COMPLETE] Graph analysis finished successfully! ---")
-    
-    return final_state["final_review"]
