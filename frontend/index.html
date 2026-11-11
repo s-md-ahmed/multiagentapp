@@ -6,6 +6,8 @@
     <title>Multi-Agent AI Repo Analyzer</title>
     <!-- Marked.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- DOMPurify CDN for safe HTML rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.8/purify.min.js"></script>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -26,7 +28,6 @@
         </div>
 
         <div class="card input-card">
-            <!-- BYOK API Key Input Field -->
             <div class="byok-group" style="margin-bottom: 20px;">
                 <label for="groq-api-key" class="input-label" style="font-size: 13px; font-weight: 500; display: block; margin-bottom: 6px; color: #ccc;">Groq API Key (BYOK)</label>
                 <input 
@@ -38,7 +39,6 @@
                 <small style="color: #777; font-size: 11px; display: block; margin-top: 5px;">Used only for this session to bypass rate limits. Never stored on servers.</small>
             </div>
 
-            <!-- GitHub Repository URL & Stacked Button -->
             <div class="repo-section">
                 <label for="repoUrl" class="input-label" style="font-size: 13px; font-weight: 500; display: block; margin-bottom: 6px; color: #ccc;">GitHub Repository URL</label>
                 <input 
@@ -51,17 +51,14 @@
             </div>
         </div>
 
-        <!-- Loading State -->
         <div id="loadingState" class="hidden loading-box">
             <div class="spinner"></div>
             <p class="loading-title">Agent crew is hard at work...</p>
             <p class="loading-subtitle">Cloning repo ➔ Parsing files ➔ Security & QA audit ➔ Synthesizing review</p>
         </div>
 
-        <!-- Error State -->
         <div id="errorState" class="hidden error-box"></div>
 
-        <!-- Output Result Section -->
         <div id="resultSection" class="hidden card result-card">
             <div class="result-header">
                 <h2><span>🏛️</span> Executive Architecture & Security Review</h2>
