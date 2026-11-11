@@ -1,24 +1,37 @@
-def parse_repo(target_files: list) -> list:
-    MAX_LINES_PER_FILE = 200  # Enforce line limits instead of character cuts
+# parser.py
+import os
+import logging
+
+logger = logging.getLogger(__name__)
+
+def parse_repo(target_files: list, base_temp_dir: str = None) -> list:
+    MAX_LINES_PER_FILE = 200  
     
-    # Sort files to prioritize backend logic first, then frontend JS, then HTML templates
     def file_priority(path: str) -> int:
         path_lower = path.lower()
         if path_lower.endswith(('.py', '.js', '.ts')) and not 'frontend' in path_lower and not 'static' in path_lower:
-            return 1  # Core backend code first
+            return 1  
         elif path_lower.endswith(('.js', '.jsx')) and ('frontend' in path_lower or 'static' in path_lower):
-            return 2  # Frontend JS logic second
+            return 2  
         elif path_lower.endswith('.html'):
-            return 3  # HTML structure third
+            return 3  
         else:
-            return 4  # Everything else last
+            return 4  
 
     sorted_files = sorted(target_files, key=file_priority)
     parsed_data = []
     
+    abs_base_dir = os.path.abspath(base_temp_dir) if base_temp_dir else None
+
     for file_path in sorted_files:
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
+            abs_file_path = os.path.abspath(file_path)
+            # Security guard: prevent path traversal / arbitrary file read outside temp dir
+            if abs_base_dir and not abs_file_path.startswith(abs_base_dir):
+                logger.warning(f"Skipping path traversal attempt: {file_path}")
+                continue
+
+            with open(abs_file_path, 'r', encoding='utf-8', errors='ignore') as file:
                 lines = file.readlines()
                 
             truncated = False
@@ -35,6 +48,7 @@ def parse_repo(target_files: list) -> list:
                 "content": content
             })
         except Exception as e:
-            print(f"Error reading {file_path}: {e}")
+            # Replaced raw print with proper structured logger warning
+            logger.error(f"Error reading {file_path}: {e}")
             
     return parsed_data
