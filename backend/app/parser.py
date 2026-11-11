@@ -1,8 +1,22 @@
 def parse_repo(target_files: list) -> list:
-    parsed_data = []
     MAX_LINES_PER_FILE = 200  # Enforce line limits instead of character cuts
     
-    for file_path in target_files:
+    # Sort files to prioritize backend logic first, then frontend JS, then HTML templates
+    def file_priority(path: str) -> int:
+        path_lower = path.lower()
+        if path_lower.endswith(('.py', '.js', '.ts')) and not 'frontend' in path_lower and not 'static' in path_lower:
+            return 1  # Core backend code first
+        elif path_lower.endswith(('.js', '.jsx')) and ('frontend' in path_lower or 'static' in path_lower):
+            return 2  # Frontend JS logic second
+        elif path_lower.endswith('.html'):
+            return 3  # HTML structure third
+        else:
+            return 4  # Everything else last
+
+    sorted_files = sorted(target_files, key=file_priority)
+    parsed_data = []
+    
+    for file_path in sorted_files:
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
                 lines = file.readlines()
