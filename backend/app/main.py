@@ -19,6 +19,7 @@ sentry_sdk.init(
     traces_sample_rate=1.0,
 )
 
+# Safe LangSmith tracing initialization
 if os.getenv("LANGCHAIN_API_KEY"):
     os.environ["LANGCHAIN_TRACING_V2"] = "true"
     os.environ.setdefault("LANGCHAIN_PROJECT", "multi-agent-code-reviewer")
@@ -97,13 +98,18 @@ Output format: Return ONLY a single integer score from 1 to 5."""
 @app.post("/analyze")
 def analyze_repo(request: RepoRequest):
     try:
+        # Validate GitHub URL format to prevent malformed injections
+        clean_url = request.repo_url.strip()
+        if not re.match(r"^https://github\.com/[\w-]+/[\w.-]+/?$", clean_url):
+            raise HTTPException(status_code=400, detail="Invalid GitHub repository URL format.")
+
         raw_user_key = request.groq_api_key.get_secret_value() if request.groq_api_key else None
         active_api_key = raw_user_key or os.getenv("GROQ_API_KEY")
         if not active_api_key:
             raise HTTPException(status_code=400, detail="No Groq API key provided.")
 
         initial_state = {
-            "repo_url": request.repo_url,
+            "repo_url": clean_url,
             "api_key": active_api_key,
             "assembled_context": "",
             "security_findings": "",
@@ -132,4 +138,4 @@ def analyze_repo(request: RepoRequest):
         err_type, err_value, err_tb = sys.exc_info()
         formatted_tb = "".join(traceback.format_exception(err_type, err_value, err_tb))
         print("CRASH TRACEBACK:\n", formatted_tb)
-        raise HTTPException(status_code=500, detail=str(err_value))
+        raise HTTPException(status_code=500, detail="An internal error occurred during repository analysis.")
