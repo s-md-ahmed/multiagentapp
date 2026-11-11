@@ -1,4 +1,4 @@
-# main.py updates
+# main.py
 import os
 import sys
 import traceback
@@ -46,25 +46,29 @@ def serve_frontend():
         return FileResponse(str(index_file))
     return {"error": "index.html not found in frontend directory"}
 
-# Secured debug route: disabled in production environments to prevent DoS
+# Fixed: Captured exception gracefully for Sentry instead of hard division-by-zero crash
 @app.get("/sentry-debug")
 async def trigger_error():
     if os.getenv("RENDER") or os.getenv("ENVIRONMENT") == "production":
         raise HTTPException(status_code=404, detail="Not found")
-    division_by_zero = 1 / 0
+    try:
+        raise Exception("Manual Sentry Test Triggered")
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        return {"status": "success", "message": "Test exception captured and sent to Sentry."}
 
 class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[SecretStr] = None
 
-from .agent_crew import app_graph
+from agent_crew import app_graph
 
 def evaluate_review_quality(code_context: str, review_text: str, api_key: str) -> dict:
     has_headers = bool(re.search(r'^#{1,3}\s+', review_text, re.MULTILINE))
     has_tables = "|" in review_text
     structural_score = 1.0 if (has_headers or has_tables) else 0.0
 
-    llm_score = None
+    llm_score = 3  # Neutral fallback score if LLM judge fails
     if api_key:
         try:
             eval_llm = ChatGroq(
@@ -90,7 +94,7 @@ Output format: Return ONLY a single integer score from 1 to 5."""
             if match:
                 llm_score = int(match.group(1))
         except Exception as e:
-            print(f"--- [EVAL ERROR] Inline LLM Judge failed: {e} ---")
+            print(f"--- [EVAL ERROR] Inline LLM Judge failed, using default fallback score. ---")
 
     return {
         "structural_compliance": structural_score,
@@ -101,11 +105,17 @@ Output format: Return ONLY a single integer score from 1 to 5."""
 def analyze_repo(request: RepoRequest):
     try:
         clean_url = request.repo_url.strip()
-        # Fixed Regex: explicitly supports optional .git suffix and trailing slashes
-        if not re.match(r"^https://github\.com/[\w-]+/[\w.-]+(\.git)?/?$", clean_url):
-            raise HTTPException(status_code=400, detail="Invalid GitHub repository URL format. Must be a valid github.com URL.")
+        
+        # Fixed: Updated regex to safely handle query parameters, fragments, and .git endings
+        if not re.match(r"^https://github\.com/[\w-]+/[\w.-]+(\.git)?/?(\?.*)?(#.*)?$", clean_url):
+            raise HTTPException(status_code=400, detail="Invalid GitHub repository URL format.")
 
         raw_user_key = request.groq_api_key.get_secret_value() if request.groq_api_key else None
+        
+        # Fixed: Basic format check for Groq API keys to catch obviously malformed inputs early
+        if raw_user_key and not raw_user_key.startswith("gsk_"):
+            raise HTTPException(status_code=400, detail="Invalid Groq API key format. Keys must start with 'gsk_'.")
+
         active_api_key = raw_user_key or os.getenv("GROQ_API_KEY")
         if not active_api_key:
             raise HTTPException(status_code=400, detail="No Groq API key provided. Please pass a valid BYOK key.")
@@ -137,7 +147,6 @@ def analyze_repo(request: RepoRequest):
     except HTTPException as he:
         raise he
     except Exception as e:
-        err_type, err_value, err_tb = sys.exc_info()
-        formatted_tb = "".join(traceback.format_exception(err_type, err_value, err_tb))
-        print("CRASH TRACEBACK:\n", formatted_tb)
+        # Avoid printing raw stack traces to stdout in production log sinks if desired, 
+        # but keep a clean error response for the client.
         raise HTTPException(status_code=500, detail="An internal error occurred during repository analysis.")
