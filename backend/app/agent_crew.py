@@ -3,14 +3,14 @@ import os
 import tempfile
 from pathlib import Path
 from typing import TypedDict, List
-from parser import parse_repo
-from git_handler import clone_repo_to_temp
+from backend.app.parser import parse_repo
+from backend.app.git_handler import clone_repo_to_temp
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END
 from dotenv import load_dotenv
 
-env_path = Path(__file__).resolve().parent.parent / '.env'
+env_path = Path(__file__).resolve().parent.parent.parent / '.env'
 load_dotenv(dotenv_path=env_path)
 
 class AnalysisState(TypedDict):
