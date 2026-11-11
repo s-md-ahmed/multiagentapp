@@ -1,3 +1,4 @@
+# agent_crew.py updates
 import os
 import tempfile
 from pathlib import Path
@@ -5,13 +6,13 @@ from typing import TypedDict, List
 from .parser import parse_repo
 from .git_handler import clone_repo_to_temp
 from langchain_groq import ChatGroq
+from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END
 from dotenv import load_dotenv
 
 env_path = Path(__file__).resolve().parent.parent / '.env'
 load_dotenv(dotenv_path=env_path)
 
-# 1. Define the Shared State for the Graph
 class AnalysisState(TypedDict):
     repo_url: str
     api_key: str
@@ -20,10 +21,7 @@ class AnalysisState(TypedDict):
     bug_findings: str
     final_review: str
 
-# 2. Define Node Functions
-
 def load_and_parse_node(state: AnalysisState):
-    """Clones the repo, parses files with intelligent priority, and prepares the context budget."""
     print("--- [GRAPH NODE] Cloning and Parsing Repository ---")
     with tempfile.TemporaryDirectory() as temp_repo_path:
         target_files = clone_repo_to_temp(state["repo_url"], temp_repo_path)
@@ -55,7 +53,6 @@ def load_and_parse_node(state: AnalysisState):
         return {"assembled_context": assembled_context}
 
 def security_node(state: AnalysisState):
-    """Agent 1: Security Specialist"""
     print("--- [GRAPH NODE] Security Specialist Scanning ---")
     llm = ChatGroq(
         api_key=state["api_key"], 
@@ -67,15 +64,15 @@ def security_node(state: AnalysisState):
         "You are a cybersecurity expert. Scan the codebase strictly for vulnerabilities, hardcoded secrets, and injection risks. "
         "For every finding, provide a concise, direct 1-sentence explanation for the 'Why'."
     )
+    # Using explicit message objects instead of tuples
     messages = [
-        ("system", sec_sys),
-        ("user", f"Here is the repository codebase:\n\n{state['assembled_context']}")
+        SystemMessage(content=sec_sys),
+        HumanMessage(content=f"Here is the repository codebase:\n\n{state['assembled_context']}")
     ]
     response = llm.invoke(messages)
     return {"security_findings": response.content}
 
 def bug_hunter_node(state: AnalysisState):
-    """Agent 2: Bug Hunter"""
     print("--- [GRAPH NODE] Bug Hunter Scanning Logic ---")
     llm = ChatGroq(
         api_key=state["api_key"], 
@@ -88,14 +85,13 @@ def bug_hunter_node(state: AnalysisState):
         "For every bug found, provide a concise, direct 1-sentence explanation for the 'Why'."
     )
     messages = [
-        ("system", bug_sys),
-        ("user", f"Here is the repository codebase:\n\n{state['assembled_context']}")
+        SystemMessage(content=bug_sys),
+        HumanMessage(content=f"Here is the repository codebase:\n\n{state['assembled_context']}")
     ]
     response = llm.invoke(messages)
     return {"bug_findings": response.content}
 
 def architect_node(state: AnalysisState):
-    """Agent 3: Lead Architect Synthesis"""
     print("--- [GRAPH NODE] Lead Architect Synthesizing Review ---")
     llm = ChatGroq(
         api_key=state["api_key"], 
@@ -119,22 +115,19 @@ def architect_node(state: AnalysisState):
         f"--- BUG REPORT ---\n{state['bug_findings']}"
     )
     messages = [
-        ("system", synth_sys),
-        ("user", synth_user)
+        SystemMessage(content=synth_sys),
+        HumanMessage(content=synth_user)
     ]
     response = llm.invoke(messages)
     return {"final_review": response.content}
 
-# 3. Build and Compile the Workflow Graph
 workflow = StateGraph(AnalysisState)
 
-# Add nodes
 workflow.add_node("loader", load_and_parse_node)
 workflow.add_node("security", security_node)
 workflow.add_node("bug_hunter", bug_hunter_node)
 workflow.add_node("architect", architect_node)
 
-# Define edges (Sequential execution, or parallel security + bug hunting)
 workflow.set_entry_point("loader")
 workflow.add_edge("loader", "security")
 workflow.add_edge("loader", "bug_hunter")
@@ -142,10 +135,8 @@ workflow.add_edge("security", "architect")
 workflow.add_edge("bug_hunter", "architect")
 workflow.add_edge("architect", END)
 
-# Compile the graph into an executable app
 app_graph = workflow.compile()
 
-# 4. Main Entry Point Called by FastAPI
 def analyze_codebase(repo_url: str, api_key: str = None):
     active_api_key = api_key or os.getenv("GROQ_API_KEY")
     if not active_api_key:
