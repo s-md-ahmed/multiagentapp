@@ -56,7 +56,7 @@ def security_node(state: AnalysisState):
     print("--- [GRAPH NODE] Security Specialist Scanning ---")
     llm = ChatGroq(
         api_key=state["api_key"], 
-        model_name="llama-3.3-70b-versatile",
+        model_name="openai/gpt-oss-20b",
         temperature=0.1,
         max_tokens=3000
     )
@@ -75,7 +75,7 @@ def bug_hunter_node(state: AnalysisState):
     print("--- [GRAPH NODE] Bug Hunter Scanning Logic ---")
     llm = ChatGroq(
         api_key=state["api_key"], 
-        model_name="llama-3.3-70b-versatile",
+        model_name="openai/gpt-oss-20b",
         temperature=0.1,
         max_tokens=3000
     )
@@ -94,7 +94,7 @@ def architect_node(state: AnalysisState):
     print("--- [GRAPH NODE] Lead Architect Synthesizing Review ---")
     llm = ChatGroq(
         api_key=state["api_key"], 
-        model_name="llama-3.3-70b-versatile",
+        model_name="openai/gpt-oss-20b",
         temperature=0.1,
         max_tokens=6000
     )
