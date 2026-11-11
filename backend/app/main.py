@@ -71,8 +71,8 @@ class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[SecretStr] = None
 
-# Clean, direct absolute import since both files live in the same directory
-from agent_crew import app_graph
+# Package-absolute import matching backend/app/ structure
+from backend.app.agent_crew import app_graph
 
 def evaluate_review_quality(code_context: str, review_text: Optional[str], api_key: str) -> dict:
     safe_review = review_text if review_text else ""
