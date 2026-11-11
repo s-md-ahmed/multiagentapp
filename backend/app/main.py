@@ -1,4 +1,4 @@
-# main.py
+# main.py updates
 import os
 import sys
 import traceback
@@ -19,7 +19,6 @@ sentry_sdk.init(
     traces_sample_rate=1.0,
 )
 
-# Safe LangSmith tracing initialization
 if os.getenv("LANGCHAIN_API_KEY"):
     os.environ["LANGCHAIN_TRACING_V2"] = "true"
     os.environ.setdefault("LANGCHAIN_PROJECT", "multi-agent-code-reviewer")
@@ -47,8 +46,11 @@ def serve_frontend():
         return FileResponse(str(index_file))
     return {"error": "index.html not found in frontend directory"}
 
+# Secured debug route: disabled in production environments to prevent DoS
 @app.get("/sentry-debug")
 async def trigger_error():
+    if os.getenv("RENDER") or os.getenv("ENVIRONMENT") == "production":
+        raise HTTPException(status_code=404, detail="Not found")
     division_by_zero = 1 / 0
 
 class RepoRequest(BaseModel):
@@ -98,15 +100,15 @@ Output format: Return ONLY a single integer score from 1 to 5."""
 @app.post("/analyze")
 def analyze_repo(request: RepoRequest):
     try:
-        # Validate GitHub URL format to prevent malformed injections
         clean_url = request.repo_url.strip()
-        if not re.match(r"^https://github\.com/[\w-]+/[\w.-]+/?$", clean_url):
-            raise HTTPException(status_code=400, detail="Invalid GitHub repository URL format.")
+        # Fixed Regex: explicitly supports optional .git suffix and trailing slashes
+        if not re.match(r"^https://github\.com/[\w-]+/[\w.-]+(\.git)?/?$", clean_url):
+            raise HTTPException(status_code=400, detail="Invalid GitHub repository URL format. Must be a valid github.com URL.")
 
         raw_user_key = request.groq_api_key.get_secret_value() if request.groq_api_key else None
         active_api_key = raw_user_key or os.getenv("GROQ_API_KEY")
         if not active_api_key:
-            raise HTTPException(status_code=400, detail="No Groq API key provided.")
+            raise HTTPException(status_code=400, detail="No Groq API key provided. Please pass a valid BYOK key.")
 
         initial_state = {
             "repo_url": clean_url,
