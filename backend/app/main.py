@@ -71,7 +71,6 @@ class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[SecretStr] = None
 
-# Package-absolute import matching backend/app/ structure
 from backend.app.agent_crew import app_graph
 
 def evaluate_review_quality(code_context: str, review_text: Optional[str], api_key: str) -> dict:
@@ -86,7 +85,7 @@ def evaluate_review_quality(code_context: str, review_text: Optional[str], api_k
         try:
             eval_llm = ChatGroq(
                 api_key=api_key,
-                model_name="llama-3.3-70b-versatile",
+                model_name="openai/gpt-oss-20b",
                 temperature=0.1
             )
             prompt = f"""You are a strict code review auditor. Evaluate the following AI-generated code review based on the repository context.\n\nRepository Context:\n{code_context[:5000]}\n\nAI Code Review:\n{safe_review[:3000]}\n\nTask: Rate the actionability and factual grounding on a scale of 1 to 5.\nOutput format: Return ONLY a single integer score from 1 to 5."""
@@ -151,5 +150,7 @@ def analyze_repo(request: RepoRequest):
         
     except HTTPException as he:
         raise he
-    except Exception:
-        raise HTTPException(status_code=500, detail="An internal error occurred during repository analysis.")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal Error: {str(e)}")
