@@ -9,7 +9,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, SecretStr
 import re
-from langchain_groq import ChatGroq
 import sentry_sdk
 
 if os.getenv("SENTRY_DSN"):
@@ -32,11 +31,11 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    # Added Referrer-Policy and Permissions-Policy to satisfy security scanners
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline';"
     return response
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://multiagentapp-7zwv.onrender.com", "http://localhost:8000", "http://127.0.0.1:8000"],
@@ -68,40 +67,12 @@ async def trigger_error():
         if os.getenv("SENTRY_DSN"):
             sentry_sdk.capture_exception(e)
         return {"status": "error", "message": "Test exception captured."}
+
 class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[SecretStr] = None
 
 from backend.app.agent_crew import app_graph
-
-def evaluate_review_quality(code_context: str, review_text: Optional[str], api_key: str) -> dict:
-    safe_review = review_text if review_text else ""
-    
-    has_headers = bool(re.search(r'^#{1,3}\s+', safe_review, re.MULTILINE))
-    has_tables = "|" in safe_review
-    structural_score = 1.0 if (has_headers or has_tables) else 0.0
-
-    llm_score = 3  
-    if api_key and safe_review.strip():
-        try:
-            eval_llm = ChatGroq(
-                api_key=api_key,
-                model_name="openai/gpt-oss-20b",
-                temperature=0.1
-            )
-            prompt = f"""You are a strict code review auditor. Evaluate the following AI-generated code review based on the repository context.\n\nRepository Context:\n{code_context[:5000]}\n\nAI Code Review:\n{safe_review[:3000]}\n\nTask: Rate the actionability and factual grounding on a scale of 1 to 5.\nOutput format: Return ONLY a single integer score from 1 to 5."""
-            res = eval_llm.invoke([("user", prompt)])
-            raw_content = res.content.strip() if res and res.content else ""
-            match = re.search(r'([1-5])', raw_content)
-            if match:
-                llm_score = int(match.group(1))
-        except Exception:
-            pass
-
-    return {
-        "structural_compliance": structural_score,
-        "llm_quality_judge": llm_score
-    }
 
 @app.post("/analyze")
 def analyze_repo(request: RepoRequest):
@@ -132,21 +103,13 @@ def analyze_repo(request: RepoRequest):
         
         final_state = app_graph.invoke(initial_state)
         
-        if not isinstance(final_state, dict) or "final_review" not in final_state or "assembled_context" not in final_state:
+        if not isinstance(final_state, dict) or "final_review" not in final_state:
             raise HTTPException(status_code=500, detail="Agent graph execution returned malformed state output.")
 
         analysis_result = final_state["final_review"]
-        assembled_code_context = final_state["assembled_context"]
-
-        eval_results = evaluate_review_quality(
-            code_context=assembled_code_context,
-            review_text=analysis_result,
-            api_key=active_api_key
-        )
 
         return JSONResponse(content={
-            "markdown": analysis_result,
-            "evaluations": eval_results
+            "markdown": analysis_result
         })
         
     except HTTPException as he:
