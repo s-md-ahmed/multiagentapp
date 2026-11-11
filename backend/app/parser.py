@@ -1,5 +1,6 @@
 # parser.py
 import os
+import tempfile
 import logging
 
 logger = logging.getLogger(__name__)
@@ -21,13 +22,14 @@ def parse_repo(target_files: list, base_temp_dir: str = None) -> list:
     sorted_files = sorted(target_files, key=file_priority)
     parsed_data = []
     
-    abs_base_dir = os.path.abspath(base_temp_dir) if base_temp_dir else None
+    # Secure fallback: if base_temp_dir is not provided, default to system temp directory
+    abs_base_dir = os.path.abspath(base_temp_dir) if base_temp_dir else os.path.abspath(tempfile.gettempdir())
 
     for file_path in sorted_files:
         try:
             abs_file_path = os.path.abspath(file_path)
-            # Security guard: prevent path traversal / arbitrary file read outside temp dir
-            if abs_base_dir and not abs_file_path.startswith(abs_base_dir):
+            # Strict traversal guard is now always active
+            if not abs_file_path.startswith(abs_base_dir):
                 logger.warning(f"Skipping path traversal attempt: {file_path}")
                 continue
 
@@ -48,7 +50,6 @@ def parse_repo(target_files: list, base_temp_dir: str = None) -> list:
                 "content": content
             })
         except Exception as e:
-            # Replaced raw print with proper structured logger warning
             logger.error(f"Error reading {file_path}: {e}")
             
     return parsed_data
