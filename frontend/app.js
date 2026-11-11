@@ -94,7 +94,6 @@ async function startAnalysis() {
             </div>
         `;
 
-        // Render marked markdown and sanitize it via DOMPurify to prevent any XSS flags
         const rawMarkdownHtml = marked.parse(data.markdown);
         markdownOutput.innerHTML = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(rawMarkdownHtml) : rawMarkdownHtml;
 
