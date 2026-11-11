@@ -12,7 +12,6 @@ import re
 from langchain_groq import ChatGroq
 import sentry_sdk
 
-# Fixed: Conditional Sentry initialization to prevent misbehavior if DSN is absent
 if os.getenv("SENTRY_DSN"):
     sentry_sdk.init(
         dsn=os.getenv("SENTRY_DSN"),
@@ -26,7 +25,6 @@ if os.getenv("LANGCHAIN_API_KEY"):
 
 app = FastAPI()
 
-# Fixed: Added strict Content-Security-Policy and other security headers
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
@@ -73,19 +71,10 @@ class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[SecretStr] = None
 
-
-import sys
-from pathlib import Path
-
-# Ensures current directory is in sys.path
-current_dir = Path(__file__).resolve().parent
-if str(current_dir) not in sys.path:
-    sys.path.append(str(current_dir))
-
+# Clean, direct absolute import since both files live in the same directory
 from agent_crew import app_graph
 
 def evaluate_review_quality(code_context: str, review_text: Optional[str], api_key: str) -> dict:
-    # Fixed: Safe fallback if review_text is None
     safe_review = review_text if review_text else ""
     
     has_headers = bool(re.search(r'^#{1,3}\s+', safe_review, re.MULTILINE))
@@ -97,7 +86,7 @@ def evaluate_review_quality(code_context: str, review_text: Optional[str], api_k
         try:
             eval_llm = ChatGroq(
                 api_key=api_key,
-                model_name="llama-3.3-70b-versatile",  # Fixed to valid Groq production model
+                model_name="llama-3.3-70b-versatile",
                 temperature=0.1
             )
             prompt = f"""You are a strict code review auditor. Evaluate the following AI-generated code review based on the repository context.\n\nRepository Context:\n{code_context[:5000]}\n\nAI Code Review:\n{safe_review[:3000]}\n\nTask: Rate the actionability and factual grounding on a scale of 1 to 5.\nOutput format: Return ONLY a single integer score from 1 to 5."""
