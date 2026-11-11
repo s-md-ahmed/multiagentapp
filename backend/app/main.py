@@ -73,7 +73,7 @@ class RepoRequest(BaseModel):
     repo_url: str
     groq_api_key: Optional[SecretStr] = None
 
-from agent_crew import app_graph
+from .agent_crew import app_graph
 
 def evaluate_review_quality(code_context: str, review_text: Optional[str], api_key: str) -> dict:
     # Fixed: Safe fallback if review_text is None
