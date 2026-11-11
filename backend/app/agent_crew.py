@@ -3,8 +3,8 @@ import os
 import tempfile
 from pathlib import Path
 from typing import TypedDict, List
-from .parser import parse_repo
-from .git_handler import clone_repo_to_temp
+from parser import parse_repo
+from git_handler import clone_repo_to_temp
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END
@@ -25,7 +25,6 @@ def load_and_parse_node(state: AnalysisState):
     print("--- [GRAPH NODE] Cloning and Parsing Repository ---")
     with tempfile.TemporaryDirectory() as temp_repo_path:
         target_files = clone_repo_to_temp(state["repo_url"], temp_repo_path)
-        # Pass temp_repo_path explicitly to satisfy the path traversal guard
         parsed_data = parse_repo(target_files, base_temp_dir=temp_repo_path)
         
         MAX_TOTAL_CHARS = 10000
@@ -57,7 +56,7 @@ def security_node(state: AnalysisState):
     print("--- [GRAPH NODE] Security Specialist Scanning ---")
     llm = ChatGroq(
         api_key=state["api_key"], 
-        model_name="llama-3.3-70b-versatile",  # Fixed to valid Groq production model
+        model_name="llama-3.3-70b-versatile",
         temperature=0.1,
         max_tokens=3000
     )
@@ -76,7 +75,7 @@ def bug_hunter_node(state: AnalysisState):
     print("--- [GRAPH NODE] Bug Hunter Scanning Logic ---")
     llm = ChatGroq(
         api_key=state["api_key"], 
-        model_name="llama-3.3-70b-versatile",  # Fixed to valid Groq production model
+        model_name="llama-3.3-70b-versatile",
         temperature=0.1,
         max_tokens=3000
     )
@@ -95,7 +94,7 @@ def architect_node(state: AnalysisState):
     print("--- [GRAPH NODE] Lead Architect Synthesizing Review ---")
     llm = ChatGroq(
         api_key=state["api_key"], 
-        model_name="llama-3.3-70b-versatile",  # Fixed to valid Groq production model
+        model_name="llama-3.3-70b-versatile",
         temperature=0.1,
         max_tokens=6000
     )
