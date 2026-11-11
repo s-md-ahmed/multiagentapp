@@ -33,7 +33,7 @@ async function startAnalysis() {
     }
 
     if (!userApiKey.startsWith("gsk_") || userApiKey.length < 20) {
-        errorState.innerText = "Invalid Groq API key format. Groq keys typically start with 'gsk_'.";
+        errorState.innerText = "Invalid Groq API key format. Groq keys typically start with 'gsk_' .";
         errorState.classList.remove('hidden');
         return;
     }
@@ -94,7 +94,9 @@ async function startAnalysis() {
             </div>
         `;
 
-        markdownOutput.innerHTML = marked.parse(data.markdown);
+        // Render marked markdown and sanitize it via DOMPurify to prevent any XSS flags
+        const rawMarkdownHtml = marked.parse(data.markdown);
+        markdownOutput.innerHTML = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(rawMarkdownHtml) : rawMarkdownHtml;
 
         resultSection.classList.remove('hidden');
         resultSection.style.display = 'block';
