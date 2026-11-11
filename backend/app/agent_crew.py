@@ -23,10 +23,9 @@ class AnalysisState(TypedDict):
 # 2. Define Node Functions
 
 def load_and_parse_node(state: AnalysisState):
-    """Clones the repo, parses files, and prepares the context budget."""
+    """Clones the repo, parses files with intelligent priority, and prepares the context budget."""
     print("--- [GRAPH NODE] Cloning and Parsing Repository ---")
     with tempfile.TemporaryDirectory() as temp_repo_path:
-        # Note: In production or async settings, handle tempdir persistence carefully if needed.
         target_files = clone_repo_to_temp(state["repo_url"], temp_repo_path)
         parsed_data = parse_repo(target_files)
         
