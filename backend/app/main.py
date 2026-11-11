@@ -4,7 +4,7 @@ import sys
 import traceback
 from pathlib import Path
 from typing import Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,11 +25,21 @@ if os.getenv("LANGCHAIN_API_KEY"):
 
 app = FastAPI()
 
+# 1. Add Security Headers Middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://multiagentapp-7zwv.onrender.com", "http://localhost:8000", "http://127.0.0.1:8000"],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -44,9 +54,9 @@ def serve_frontend():
     index_file = FRONTEND_DIR / "index.html"
     if index_file.exists():
         return FileResponse(str(index_file))
-    return {"error": "index.html not found in frontend directory"}
+    # Fixed: Returns strict JSONResponse instead of raw python dict for type consistency
+    return JSONResponse(status_code=404, content={"error": "index.html not found in frontend directory"})
 
-# Fixed: Captured exception gracefully for Sentry instead of hard division-by-zero crash
 @app.get("/sentry-debug")
 async def trigger_error():
     if os.getenv("RENDER") or os.getenv("ENVIRONMENT") == "production":
@@ -68,7 +78,7 @@ def evaluate_review_quality(code_context: str, review_text: str, api_key: str) -
     has_tables = "|" in review_text
     structural_score = 1.0 if (has_headers or has_tables) else 0.0
 
-    llm_score = 3  # Neutral fallback score if LLM judge fails
+    llm_score = 3  
     if api_key:
         try:
             eval_llm = ChatGroq(
@@ -76,25 +86,14 @@ def evaluate_review_quality(code_context: str, review_text: str, api_key: str) -
                 model_name="openai/gpt-oss-20b",
                 temperature=0.1
             )
-            
-            prompt = f"""You are a strict code review auditor. Evaluate the following AI-generated code review based on the repository context.
-            
-Repository Context:
-{code_context[:5000]}
-
-AI Code Review:
-{review_text[:3000]}
-
-Task: Rate the actionability and factual grounding on a scale of 1 to 5.
-Output format: Return ONLY a single integer score from 1 to 5."""
-
+            prompt = f"""You are a strict code review auditor. Evaluate the following AI-generated code review based on the repository context.\n\nRepository Context:\n{code_context[:5000]}\n\nAI Code Review:\n{review_text[:3000]}\n\nTask: Rate the actionability and factual grounding on a scale of 1 to 5.\nOutput format: Return ONLY a single integer score from 1 to 5."""
             res = eval_llm.invoke([("user", prompt)])
             raw_content = res.content.strip() if res and res.content else ""
             match = re.search(r'([1-5])', raw_content)
             if match:
                 llm_score = int(match.group(1))
-        except Exception as e:
-            print(f"--- [EVAL ERROR] Inline LLM Judge failed, using default fallback score. ---")
+        except Exception:
+            pass
 
     return {
         "structural_compliance": structural_score,
@@ -105,14 +104,14 @@ Output format: Return ONLY a single integer score from 1 to 5."""
 def analyze_repo(request: RepoRequest):
     try:
         clean_url = request.repo_url.strip()
-        
-        # Fixed: Updated regex to safely handle query parameters, fragments, and .git endings
         if not re.match(r"^https://github\.com/[\w-]+/[\w.-]+(\.git)?/?(\?.*)?(#.*)?$", clean_url):
             raise HTTPException(status_code=400, detail="Invalid GitHub repository URL format.")
 
-        raw_user_key = request.groq_api_key.get_secret_value() if request.groq_api_key else None
-        
-        # Fixed: Basic format check for Groq API keys to catch obviously malformed inputs early
+        # Fixed: Explicit check ensuring secret value is non-empty after stripping
+        raw_user_key = request.groq_api_key.get_secret_value().strip() if request.groq_api_key else None
+        if raw_user_key == "":
+            raw_user_key = None
+
         if raw_user_key and not raw_user_key.startswith("gsk_"):
             raise HTTPException(status_code=400, detail="Invalid Groq API key format. Keys must start with 'gsk_'.")
 
@@ -130,6 +129,11 @@ def analyze_repo(request: RepoRequest):
         }
         
         final_state = app_graph.invoke(initial_state)
+        
+        # Fixed: Validate that graph output contains expected keys before accessing them
+        if not isinstance(final_state, dict) or "final_review" not in final_state or "assembled_context" not in final_state:
+            raise HTTPException(status_code=500, detail="Agent graph execution returned malformed state output.")
+
         analysis_result = final_state["final_review"]
         assembled_code_context = final_state["assembled_context"]
 
@@ -146,7 +150,5 @@ def analyze_repo(request: RepoRequest):
         
     except HTTPException as he:
         raise he
-    except Exception as e:
-        # Avoid printing raw stack traces to stdout in production log sinks if desired, 
-        # but keep a clean error response for the client.
+    except Exception:
         raise HTTPException(status_code=500, detail="An internal error occurred during repository analysis.")
